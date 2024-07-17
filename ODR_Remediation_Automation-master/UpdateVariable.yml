@@ -5,9 +5,7 @@
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     ANSIBLE_HOST_KEY_CHECKING: false
-    #ansible_user: prvcloudacct
-    #ansible_password: Inital112223
-    github_token: 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
+    #github_token: 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
     github_repo_owner: hshah
     uninstall_command: true  
   
