@@ -1,0 +1,193 @@
+pipeline {
+    agent {
+        docker {
+            image 'harimaumalaya:v0.0.1j'
+            label 'docker'
+            registryUrl 'https://046099537821.dkr.ecr.us-east-1.amazonaws.com'
+            args '-u root'
+            reuseNode true
+        }
+    }
+
+    parameters {
+        string(name: 'msi_version', defaultValue: 'msodbcsql_17.msi', description: 'Enter msi version')
+        string(name: 'driver_name', defaultValue: 'Microsoft ODBC Driver 17 for SQL Server', description: 'Enter driver_name')
+        string(name: 'download_path', defaultValue: 'C:\\Odbc\\msifiles', description: 'Enter download path')
+        string(name: 'check_command', defaultValue: '(Get-WmiObject -Class Win32_Product | Where-Object { \$_.Name -contains "Microsoft ODBC Driver 17 for SQL Server" }).Name', description: 'Enter check command')
+        string(name: 'install_command', defaultValue: 'Start-process -filepath "msiexec.exe" -Verb "RunAs" -ArgumentList "/i C:\\Odbc\\msifiles\\msodbcsql_17.msi ADDLOCAL=ALL","/qb", "IACCEPTMSODBCSQLLICENSETERMS=YES" -wait', description: 'Enter install command')
+	    string(name: 'server_ip', defaultValue: '10.206.64.30', description: 'Comma-separated list of server IPs for Ansible')
+        string(name: 'ansible_user', defaultValue: 'prvhitshah', description: 'Enter your user_name')
+	    password(name: 'ansible_password', defaultValue: '', description: 'Enter your user_pass')
+	    password(name: 'GIT_TOKEN', defaultValue: '', description: 'Enter your GIT_TOKEN')
+	string(name: 'qualys_id', defaultValue: '', description: 'Enter qualys_id of the server')
+	 string(name: 'type',  defaultValue: '', description: 'Enter type of the remediation')
+	 string(name: 'platform',  defaultValue: '', description: 'Enter platform of the remediation')
+    }
+ 
+    stages {
+        stage('Install Ansible') {
+            steps {
+                script {
+                    sh """
+                        apt-get update
+                        apt-get install -y ansible
+                        pip install boto3
+                        ls -ltr /usr/bin/*
+                        ansible --version
+                        which pip
+                        which python
+                        python3 -m pip install boto3
+                        pwd
+                        ls -ltr
+                    """
+                }
+            }
+        }
+	
+	 stage('Reachability check') {
+            steps {
+                script {
+		
+                          sh '''
+			     ls -lart
+			     rm -rf ${server_ip}_win.csv
+			     rm -rf ${server_ip}_win1.csv
+			     rm -rf ${server_ip}_win.html
+			     ls -lart 
+			     rm -rf /jenkins_home/linux_nonprod/docker-machine-2/afad1930/workspace/terraform/SRE-SNOW-Integration/ODR/windows_uninstallapp/./${server_ip}_win1.csv 
+			     rm -rf /jenkins_home/linux_nonprod/docker-machine-2/afad1930/workspace/terraform/SRE-SNOW-Integration/ODR/windows_uninstallapp/./${server_ip}_win.csv
+			     rm -rf /jenkins_home/linux_nonprod/docker-machine-2/afad1930/workspace/terraform/SRE-SNOW-Integration/ODR/windows_uninstallapp/./${server_ip}_win.html
+			     rm -rf failed_windowsup_* passed_windowsup_* passed_LS_* patch_win_* bi_precheck_* am_precheck_* winupdate_precheck_*  LS_precheck_*  passed_fw_* fw_precheck_*
+			      ls -lart
+			    ansible-playbook -i ${server_ip},  Windows_Update_service.yml \
+			     -e "server_ip=\\"${server_ip}\\""\
+			     -e "ansible_user=\\"${ansible_user}\\""\
+                             -e "ansible_password=\\"${ansible_password}\\""
+			     apt install dos2unix
+			     bash win_docs_convert.sh
+			     ls -lart
+			     cat winupdate_precheck_passed1
+			     cat LS_precheck_passed
+			     cat fw_precheck_passed
+			     '''
+            }
+            }
+            }
+	    
+	    stage('License check') {
+            steps {
+                script {
+		           def server_ip = params.server_ip
+			   echo "DEBUG: server_ip = ${server_ip}"
+		         if (fileExists("passed_windowsup_${server_ip}")) {
+                          sh '''
+			   
+			     ansible-playbook -i winupdate_precheck_passed1  Gather_license_status.yml \
+			     -e "server_ip=\\"${server_ip}\\""\
+			     -e "ansible_user=\\"${ansible_user}\\""\
+                             -e "ansible_password=\\"${ansible_password}\\"" 
+			     bash win_docs_convert.sh
+			     ls -lart
+			     cat LS_precheck_passed
+			     cat LS_precheck_failed
+			     '''
+			  } else {
+                        echo "Skipping the License Check stage due to the presence of 'failed_windowsup_${server_ip}' file."
+                    }
+            }
+            }
+            }
+	    
+	    stage('Firewall check') {
+            steps {
+                script {
+		           def server_ip = params.server_ip
+			   echo "DEBUG: server_ip = ${server_ip}"
+		          if (fileExists("passed_LS_${server_ip}")) {
+                          sh '''
+			     ansible-playbook -i LS_precheck_passed  Get_firewall_service.yml \\
+			      -e "server_ip=\\"${server_ip}\\""\
+			     -e "ansible_user=\\"${ansible_user}\\"" \
+                             -e "ansible_password=\\"${ansible_password}\\"" 
+			     bash win_docs_convert.sh
+                             ls -lart
+			     cat fw_precheck_passed
+			     cat fw_precheck_failed
+		     	     '''
+			   } else {
+                        echo "Skipping the Firewall  stage due to the presence of 'failed_LS_${server_ip}' file."
+                    }
+            }
+            }
+            }
+
+	   
+      
+          stage('To install and copy msi') {
+            steps {
+                script {
+                   
+		            def server_ip = params.server_ip
+			        echo "DEBUG: server_ip = ${server_ip}"
+				 if (fileExists("passed_fw_${server_ip}")) {
+                                    sh '''
+				        ansible-playbook -i ${server_ip}, msi.yml \
+					 -e "GIT_TOKEN=\\"${GIT_TOKEN}\\"" 
+					 ls -lart
+					 ls -lart /jenkins/work/
+					ls -lart /jenkins/work/msifiles
+					
+                                        ansible-playbook -i ${server_ip}, msi2.yml \
+                                        -e "msi_version=\\"${msi_version}\\"" \
+                                        -e "driver_name=\\"${driver_name}\\"" \
+                                        -e "download_path=\\"${download_path}\\"" \
+                                        -e "check_command=\\"${check_command}\\"" \
+                                        -e "install_command=\\"${install_command}\\"" \
+					-e "server_ip=\\"${server_ip}\\"" \
+                                        -e "ansible_user=\\"${ansible_user}\\"" \
+                                        -e "ansible_password=\\"${ansible_password}\\""
+					 rm -rf /jenkins/work/
+					 ls -lart
+                                    '''
+				    } else {
+                                            echo "Skipping the Uninstall windows application stage due to the presence of 'failed_fw_${server_ip}' file."
+                                   }
+			    } 
+                }
+            }
+	    
+	      stage('Postcheck-report') {           
+            steps {
+                script {
+                                
+                  sh '''      
+		            
+			     ansible-playbook -i ${server_ip}, report-latest-win.yml \
+			     -e "server_ip=\\"${server_ip}\\""\
+                            -e "ansible_user=\\"${ansible_user}\\""\
+                            -e "ansible_password=\\"${ansible_password}\\""
+                             echo "Hostname, Ping, Win_Update_Precheck, LS_Precheck, FW_Precheck, Remediation_Status, Postcheck_status, Incident" > ${server_ip}_win1.csv
+			     ls -lart
+			     cat ${server_ip}_win.csv
+			     cat ${server_ip}_win.csv >> ${server_ip}_win1.csv
+			     cat ${server_ip}_win1.csv
+			     
+			     
+			      ansible-playbook -vvv -i ${server_ip},  report-win-fetch.yml \
+                            -e "ansible_user=\\"${ansible_user}\\""\
+			    -e "server_ip=\\"${server_ip}\\""\
+                            -e "ansible_password=\\"${ansible_password}\\""\
+			    -e "qualys_id=\\"${qualys_id}\\""\
+	                    -e "type=\\"${type}\\""\
+	                    -e "platform=\\"${platform}\\""
+			    
+			    ansible-playbook -i ${server_ip},   remotestore-winpost.yml \
+                            -e "ansible_user=\\"${ansible_user}\\""\
+                            -e "ansible_password=\\"${ansible_password}\\""\
+	                    -e "GIT_TOKEN=\\"${GIT_TOKEN}\\"" 
+               '''
+            }
+            }
+            } 
+    }
+}

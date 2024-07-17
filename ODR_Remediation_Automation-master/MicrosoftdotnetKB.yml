@@ -1,0 +1,84 @@
+---
+- name: Package update in the windows server
+  hosts: windows_servers
+  gather_facts: yes
+  vars:
+    ansible_connection: winrm
+    ansible_user: prvcloudusr
+    ansible_password: aznlS@G6yhXD
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+
+  # vars:
+  #   kb_number: "{{ kb_number }}"
+  #   catalog: "{{ catalog }}"
+  #   download_folder: "{{ download_folder }}"
+  #   reboot_msg: "{{ reboot_msg }}"
+
+  # vars:
+  #   kb_number: "KB5020873"
+  #   catalog: "https://www.catalog.update.microsoft.com/Home.aspx"
+  #   download_folder: "C:\\Path\\To\\Download\\Folder"
+  #   reboot_msg: "Reboot initiated by Ansible after KB installation"
+
+  #   # Define command templates as variables
+  #   download_command: >
+  #     powershell.exe "(Invoke-WebRequest -Uri '{{ catalog }}').Links |
+  #     Where-Object { $_.innerText -like '*Download*' } |
+  #     Select-Object -ExpandProperty href"
+
+  #   install_kb_command: >
+  #     powershell.exe "Get-WindowsUpdate -Install -KBArticleID '{{ kb_number }}'"
+
+  #   install_all_updates_command: "powershell.exe 'Get-WindowsUpdate -Install -AcceptAll'"
+
+  tasks:
+    - name: Get download link from Microsoft Update Catalog
+      win_uri:
+        url: "https://www.catalog.update.microsoft.com/Home.aspx"
+        method: GET
+        return_content: yes
+      register: response
+
+    - name: Extract download link
+      set_fact:
+        download_link: >-
+          {{ catalog_page.content |
+             regex_search('(?i)<a[^>]+?href=[\'"]([^\'">]+?{{ kb_number }}[^\'">]+?)', '\\1') |
+             regex_replace('{{ kb_number }}', '{{ kb_number }}{{ product_name }}') |
+             first }}
+        
+    - name: Download KB update
+      win_uri:
+        url: "{{ download_link }}"
+        method: GET
+        dest: "{{ download_folder }}/{{ kb_number }}.msu"
+      when: download_link is defined
+
+    - name: Display PowerShell script output
+      debug:
+        var: response
+
+    - name: Run Get-WindowsUpdate command
+      win_shell: "Get-WindowsUpdate"
+      when: download_link is defined
+
+    - name: Install specific KB Article
+      win_shell: "Get-WindowsUpdate -Install -KBArticleID '{{ kb_number }}'"
+      when: download_link is defined
+
+    - name: Install all updates
+      win_shell: "Get-WindowsUpdate -Install -AcceptAll"
+      register: update_result
+      changed_when: false
+      failed_when: false
+      when: download_link is defined
+      
+    - name: Print product and KB details
+      debug:
+        msg: "Installing KB {{ kb_number }} for {{ product_name }}"
+
+    - name: Reboot the server if needed
+      win_reboot:
+        msg: "Reboot initiated by Ansible after KB installation"
+        when: update_result.rc == 0 and "Reboot Require == True" in update_result.stdout

@@ -1,0 +1,278 @@
+---
+- name: Generate an HTML report from jinja template
+  hosts: "{{ server_ip }}"
+  gather_facts: yes
+  vars:
+    #random settings
+    csv_path: C:\Users\prvhitshah
+    csv_filename: "{{ server_ip }}_win.csv"
+    headers: Hostname, Ping status, Win_Update_Precheck, LS_Precheck, FW_Precheck, Remediation_Status, Postcheck_status, Incident
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password }}"'
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_transport: ntlm
+    ansible_port: 5985 
+ 
+  tasks:
+  
+#   - name: Save CSV headers
+#     ansible.builtin.lineinfile:
+#       dest: "./report1.csv"
+#       line: "{{ headers }}"
+#       create: true
+#       state: present
+#     #delegate_to: localhost
+#     run_once: true
+
+  - name: Delete CSV files
+    win_file:
+      path: "{{ csv_path }}/{{ csv_filename }}"
+      state: absent
+
+  - name: test connnect
+    win_ping:
+    register: server_avail
+    timeout: 3
+    ignore_errors: yes
+    
+  - debug:
+      var: server_avail
+          
+  - name: Ping set fact
+    set_fact:
+      ping: Passed
+    when: server_avail.failed is false
+
+
+  - name: Ping set fact
+    set_fact:
+      ping: 
+    when: not server_avail.failed is false
+    
+  - name: Ping set fact
+    set_fact:
+      pinged: Failed
+    when: server_availfail.failed is true
+
+  - name: Ping set fact
+    set_fact:
+      pinged:
+    when: not server_availfail.failed is true
+
+
+  - name: windows update 
+    win_stat:
+      path: C:\Users\prvhitshah\passed_windowsup_{{ server_ip }}
+    register: precheck_pass_winupdate
+    ignore_errors: true
+    
+  - debug:
+      var: precheck_pass_winupdate
+
+  - name: windows update  set fact for passed
+    set_fact:
+      precheck_pass_win_update: Passed
+    when: precheck_pass_winupdate.stat.exists
+  
+  - name: windows update  set fact for pass if not exists
+    set_fact:
+      precheck_pass_win_update:
+    when: not precheck_pass_winupdate.stat.exists
+  
+  - name: windows update for failed
+    win_stat:
+      path: C:\Users\prvhitshah\failed_windowsup_{{ server_ip }}
+    register: precheck_fail_winupdate
+    ignore_errors: true
+  
+  - name: windows update  set fact for failed
+    set_fact:
+      precheck_fail_win_update: Failed
+    when: precheck_fail_winupdate.stat.exists
+  
+  - name: windows update  set fact for failed if not exists
+    set_fact:
+      precheck_fail_win_update:
+    when: not precheck_fail_winupdate.stat.exists
+
+  - name: License status passed file
+    win_stat:
+      path: C:\Users\prvhitshah\passed_LS_{{ server_ip }}
+    register: precheck_pass_licensestatus
+    ignore_errors: true
+    
+  - debug:
+      var: precheck_pass_licensestatus
+
+  - name: license status  set fact for passed
+    set_fact:
+      precheck_pass_ls: Passed
+    when: precheck_pass_licensestatus.stat.exists
+  
+  - name: license status  set fact for pass if not exists
+    set_fact:
+      precheck_pass_ls:
+    when: not precheck_pass_licensestatus.stat.exists
+  
+  - name: license status for failed
+    win_stat:
+      path: C:\Users\prvhitshah\failed_LS_{{ server_ip }}
+    register: precheck_fail_licensestatus
+    ignore_errors: true
+  
+  - name: license status  set fact for failed
+    set_fact:
+      precheck_fail_ls: Failed
+    when: precheck_fail_licensestatus.stat.exists
+  
+  - name: license status  set fact for failed if not exists
+    set_fact:
+      precheck_fail_ls:
+    when: not precheck_fail_licensestatus.stat.exists
+
+
+  - name: Firewall  passed file
+    win_stat:
+      path: C:\Users\prvhitshah\passed_fw_{{ server_ip }}
+    register: precheck_pass_fw
+    ignore_errors: true
+    
+  - debug:
+      var: precheck_pass_fw
+
+  - name: Firewall  set fact for passed
+    set_fact:
+      precheck_pass_firewall: Passed
+    when: precheck_pass_fw.stat.exists
+  
+  - name: Firewall  set fact for pass if not exists
+    set_fact:
+      precheck_pass_firewall:
+    when: not precheck_pass_fw.stat.exists
+  
+  - name: Firewall for failed
+    win_stat:
+      path: C:\Users\prvhitshah\failed_fw_{{ server_ip }}
+    register: precheck_fail_fw
+    ignore_errors: true
+  
+  - name: Firewall  set fact for failed
+    set_fact:
+      precheck_fail_firewall: Failed
+    when: precheck_fail_fw.stat.exists
+  
+  - name: Firewall  set fact for failed if not exists
+    set_fact:
+      precheck_fail_firewall:
+    when: not precheck_fail_fw.stat.exists
+
+
+  
+
+  - name: Uninstall app file
+    win_stat:
+      path: C:\Users\prvhitshah\passed_Uninstallapp
+    register: precheck_pass_Uninstallapp
+    ignore_errors: true
+    
+  - debug:
+      var: precheck_pass_Uninstallapp
+
+  - name: Uninstall app set fact for passed
+    set_fact:
+      precheck_pass_app: Passed
+    when: precheck_pass_Uninstallapp.stat.exists
+  
+  - name: Uninstall app  set fact for pass if not exists
+    set_fact:
+      precheck_pass_app:
+    when: not precheck_pass_Uninstallapp.stat.exists
+  
+  - name: Uninstall file for failed
+    win_stat:
+      path: C:\Users\prvhitshah\Nochange_Uninstallapp
+    register: precheck_fail_Uninstallapp
+    ignore_errors: true
+  
+  - name: Uninstall app  set fact for failed
+    set_fact:
+      precheck_fail_app: No change
+    when: precheck_fail_Uninstallapp.stat.exists
+  
+  - name: Uninstall app  set fact for failed if not exists
+    set_fact:
+      precheck_fail_app:
+    when: not precheck_fail_Uninstallapp.stat.exists
+    
+  - name: Post check Uninstall file for post check
+    win_stat:
+      path: C:\Users\prvhitshah\post_Uninstallapp
+    register: postcheck_pass_Uninstallapp
+    ignore_errors: true
+  
+  - name: post check  app  set fact 
+    set_fact:
+      postcheck_pass_app: Passed
+    when: postcheck_pass_Uninstallapp.stat.exists
+  
+  - name: post check to Uninstall app  set fact not exists
+    set_fact:
+      postcheck_pass_app: No change
+    when: not postcheck_pass_Uninstallapp.stat.exists
+    
+  - name: RHSAPost check
+    win_stat:
+      path: C:\Users\prvhitshah\remediation
+    register: incident
+    ignore_errors: true
+  
+  - debug:
+      var: incident
+
+  - name: RHSA set fact
+    set_fact:
+      incident_status: Incident created
+    when: incident.stat.exists
+
+  - name: RHSA set fact
+    set_fact:
+      incident_status: N/A
+    when: not incident.stat.exists
+
+     
+#   - name: Save CSV headers
+#     ansible.builtin.lineinfile:
+#       dest: "./report.csv"
+#       line: "{{ headers }}"
+#       create: true
+#       state: present
+#     #delegate_to: localhost
+#     run_once: true   
+ 
+  - name: Build out CSV file
+    community.windows.win_lineinfile:
+      path: "{{ csv_path }}/{{ csv_filename }}"
+      line: "{{ server_ip }}, {{ping}} {{pinged}}, {{ precheck_pass_win_update }} {{ precheck_fail_win_update }}, {{ precheck_pass_ls }} {{ precheck_fail_ls }}, {{ precheck_pass_firewall }} {{ precheck_fail_firewall }}, {{ precheck_pass_app }} {{ precheck_fail_app }}, {{  postcheck_pass_app }}, {{ incident_status }}"
+      create: true
+      state: present
+ 
+  - name: command
+    win_shell: cat  "{{ csv_path }}/{{ csv_filename }}"
+    register: file
+    
+  - debug: 
+      var: file
+    
+
+  - name: Fetch files from remote host
+    fetch:
+      src:  "{{ csv_path }}/{{ csv_filename }}"
+      dest: ./  
+      flat: yes
+      
+      
+    
+      
+      
+      

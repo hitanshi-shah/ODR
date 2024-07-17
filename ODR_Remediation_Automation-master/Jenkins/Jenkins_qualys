@@ -1,0 +1,85 @@
+pipeline {
+    parameters {
+        string(name: 'qualysId', description: 'Qualys ID to check')
+    }
+
+    agent {
+        docker {
+            image 'harimaumalaya:v0.0.1j'
+            label 'docker-machine1'
+            registryUrl 'https://046099537821.dkr.ecr.us-east-1.amazonaws.com'
+            args '-u root'
+            reuseNode true
+        }
+    }
+
+    stages {
+        stage('Install Ansible') {
+            environment {
+                Dorg_jenkinsci_plugins_durabletask_BourneShellScript_LAUNCH_DIAGNOSTICS = 'true'
+            }
+            steps {
+                script {
+                    sh """
+                    apt-get update
+                    apt-get install -y ansible
+                    pip install boto3
+                    ls -ltr /usr/bin/*
+                    ansible --version
+                    which pip
+                    which python
+                    python3 -m pip install boto3
+                    pwd
+                    ls -ltr
+                    """
+                }
+            }
+        }
+
+        stage('Check Qualys ID Status') {
+            steps {
+                script {
+                    def qualysId = params.qualysId
+                    def loginResponse = sh(script: """
+                        curl -H "X-Requested-With: Curl Sample" -c cookie.txt -d "action=login&username=ag2re&password=Hitu@1420" "https://qualysapi.qg2.apps.qualys.com/api/2.0/fo/session/"
+                    """, returnStatus: true)
+
+                    if (loginResponse == 0) {
+                        def checkStatusResponse = sh(script: """
+                            curl -H "X-Requested-With: Curl Sample" -b "cookie.txt" -H "user: ag2re" -H "password: Hitu@1420"  "https://qualysapi.qg2.apps.qualys.com/qps/rest/1.0/get/cm/alert/6000380" 
+                        """, returnStatus: true)
+
+                        if (checkStatusResponse == 0) {
+                            echo "Qualys ID ${qualysId} is active."
+                        } else {
+                            error "Qualys ID ${qualysId} is not active or not found."
+                        }
+                    } else {
+                        error "Failed to login to Qualys API."
+                    }
+                }
+            }
+        }
+
+        stage('Launch Scan') {
+            steps {
+                script {
+                    def scanResponse = sh(script: """
+                        curl -H "X-Requested-With: Curl Sample" -b "cookie.txt" \
+                            -d "action=launch" \
+                            -d "scan_title=MyQIDScan" \
+                            -d "qid_list=${params.qualysId}" \
+                            -d "target=10.9.20.234" \
+                            "https://qualysapi.qg2.apps.qualys.com/api/2.0/fo/scan/"
+                    """, returnStatus: true)
+
+                    if (scanResponse == 0) {
+                        echo "Scan launched successfully."
+                    } else {
+                        error "Failed to launch scan."
+                    }
+                }
+            }
+        }
+    } 
+}

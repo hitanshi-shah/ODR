@@ -1,0 +1,48 @@
+---
+- name: SSL Cert
+  hosts: all
+  become_user: root
+  become: yes
+  become_method: dzdo
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    ansible_become_password: "{{ ansible_password }}"
+    websites: "{{ website_list | split(',') }}"
+  
+  tasks:
+    - name: Check if the server is up (ping)
+      ping:
+      register: ping_result
+
+    - name: Display a message if the server is not up
+      debug:
+        msg: "Server is not up, cannot proceed with further tasks"
+      when: ping_result.failed == true
+    
+    - name: Create directory in /tmp
+      file:
+        path: /tmp/ssl_cert
+        state: directory
+
+    - name: Generate SSL certificate
+      command: >
+        openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/ssl_cert/{{ item }}.key -out /tmp/ssl_cert/{{ item }}.csr -subj "/C=US/ST=New York/L=New York/O=American International Group, INC./OU=Travel Guard/CN={{ item }}"
+      with_items: "{{ websites }}"
+      
+    - name: Convert CSR to .txt format
+      command: >
+        openssl req -in /tmp/ssl_cert/{{ item }}.csr -text -noout -out /tmp/ssl_cert/{{ item }}.txt
+      with_items: "{{ websites }}"
+      
+    - name: Display the content of the CSR file in .txt format
+      command: cat /tmp/ssl_cert/{{ item }}.txt
+      with_items: "{{ websites }}"
+      register: csr_content
+      
+    - name: Print the CSR content
+      debug:
+        msg: "{{ item.stdout }}"
+      with_items: "{{ csr_content.results }}"

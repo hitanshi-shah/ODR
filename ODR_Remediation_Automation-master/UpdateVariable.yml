@@ -1,0 +1,209 @@
+---
+- name: Update Variable File in GitHub
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    #ansible_user: prvcloudacct
+    #ansible_password: Inital112223
+    github_token: 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
+    github_repo_owner: hshah
+    uninstall_command: true  
+  
+  tasks:   
+    - name: Configure Git user identity
+      git_config:
+        name: user.name
+        value: "hshah"
+        
+    - name: Split tls_settings
+      set_fact:
+        tls_settings_list: "{{ tls_settings.split(',') }}" 
+      when: 
+        - tls_settings is defined
+
+    - name: Configure Git user email
+      git_config:
+        name: user.email
+        value: "hitanshi.shah@aig.com"
+        
+    - name: Clone GitHub repository    
+      git:
+        repo: "https://{{ github_token }}@github.aig.net/{{ github_repo_owner }}/ODR_Remediation_Automation.git"
+        dest: /jenkins/work
+        version: "master"
+        clone: yes
+      async: 3000
+      poll: 5
+      ignore_errors: yes
+      delegate_to: localhost
+      register: repo
+      
+    - debug:
+        msg: "{{ repo }}"
+        
+
+    - name: Append content to the variable file
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            package_app: "{{ package_app }}"
+            new_version: "{{ new_version }}"
+            list_installed_command: "{{ list_installed_command }}"
+            update_command: "{{ update_command }}"
+            verify_command: "{{ verify_command }}"
+            type: Update
+            platform: Linux
+        insertafter: EOF
+#       with_fileglob:
+#             - "/jenkins_home/2faffecb/workspace/terraform/SRE-SNOW-Integration/ODR/variable_update/*"
+      become: true
+      when:
+        - repo.changed
+        - qualys_id is defined
+        - package_app is defined
+        - new_version is defined
+        - list_installed_command is defined
+        - update_command is defined
+        - verify_command is defined
+        
+    - name: Append content to the Uninstall variable file
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            app_location_version: "{{ app_location_version }}"
+            application: "{{ application }}"
+            version_command: "{{ version_command }}"
+            uninstall_command: "{{ uninstall_command }}"
+            check_path_command: "{{ check_path_command }}"
+            type: Uninstall
+            platform: Linux
+        insertafter: EOF
+#       with_fileglob:
+#             - "/jenkins_home/2faffecb/workspace/terraform/SRE-SNOW-Integration/ODR/variable_update/*"
+      become: true
+      when:
+        - repo.changed 
+        - qualys_id is defined
+        - app_location_version is defined
+        - application is defined
+        - version_command is defined
+        - uninstall_command is defined
+        - check_path_command is defined
+
+    - name: Append content to the variable file for installing msi file 
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            msi_version: "{{ msi_version }}"
+            driver_name: "{{ driver_name }}"
+            download_path: "{{ download_path }}"
+            check_command: "{{ check_command }}"
+            install_command: "{{ install_command }}"
+            type: install
+            platform: windows
+        insertafter: EOF
+      become: true
+      when:
+        - repo.changed
+        - qualys_id is defined
+        - msi_version is defined
+        - driver_name is defined
+        - download_path is defined
+        - check_command is defined
+        - install_command is defined
+        
+    - name: Append content to the variable file for updating or installing exe file 
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            msi_version: "{{ exe_version }}"
+            driver_name: "{{ driver_name }}"
+            download_path: "{{ download_path }}"
+            check_command: "{{ check_command }}"
+            install_command: "{{ install_command }}"
+            type: update
+            platform: windows
+        insertafter: EOF
+      become: true
+      when:
+        - repo.changed
+        - qualys_id is defined
+        - exe_version is defined
+        - driver_name is defined
+        - download_path is defined
+        - check_command is defined
+        - install_command is defined
+        
+    - name: Append content to the variable file for Uninstalling windows application
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            application_name_or_path: "{{ application_name_or_path }}"
+            uninstall_command: "{{ uninstall_command }}"
+            check_command: "{{ check_command }}"
+            type: Uninstall
+            platform: Windows
+        insertafter: EOF
+      become: true
+      when:
+        - repo.changed 
+        - qualys_id is defined
+        - application_name_or_path is defined
+        - uninstall_command is defined
+        - check_command is defined
+        
+        
+    - name: Append content to variable file for config update
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            registry_base_path: "{{ registry_base_path }}"
+            tls_settings: "{{ tls_settings }}"
+            type: Update
+            platform: Windows
+        insertafter: EOF
+      become: true
+      when:
+        - repo.changed 
+        - qualys_id is defined
+        - registry_base_path is defined
+        - tls_settings is defined
+
+    - name: Append content to variable file for windows installation
+      lineinfile:
+        path: "/jenkins/work/vars.yml"
+        line: |
+          - qualys_id: "{{ qualys_id }}"
+            kb_number: "{{ kb_number }}"
+            type: Install
+            platform: Windows
+        insertafter: EOF
+      become: true
+      when:
+        - repo.changed 
+        - qualys_id is defined
+        - kb_number is defined
+    
+      
+    - name: Git add json
+      shell: | 
+              git add *
+              git commit -m "Add json to the repo"
+              git config pull.rebase false
+              git pull
+              git push "https://{{ github_token }}@github.aig.net/{{ github_repo_owner }}/ODR_Remediation_Automation.git"
+      args:
+        chdir: "/jenkins/work"   
+      register: gitCommit
+      become: true
+      delegate_to: localhost
+    - debug:
+        msg : "{{ gitCommit }}"

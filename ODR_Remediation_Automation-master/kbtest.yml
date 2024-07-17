@@ -1,0 +1,143 @@
+- name: Update Windows Server TLS/SSL Configuration
+  hosts: all
+  gather_facts: no
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_winrm_transport: ntlm
+    ansible_password: "'{{ ansible_password }}'"
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+  tasks:
+    - name: Check server connectivity with win_ping
+      win_ping:
+      register: ping_result
+      ignore_errors: yes
+     
+    - name: print msg
+      debug:
+        var: ping_result
+ 
+    - name: Fail if server is not reachable
+      fail:
+        msg: "Server is not reachable. Check server connectivity."
+      when: ping_result.failed == true
+ 
+    - name: delete file for no change
+      win_file:
+        path: Nochange_Uninstallapp
+        state: absent
+ 
+    - name: Delete file
+      win_file:
+        path: passed_Uninstallapp
+        state: absent
+ 
+    - name: Delete file for failed
+      win_file:
+        path: post_Uninstallapp
+        state: absent  
+ 
+    - name: list
+      set_fact:
+        KB_Number: "{{ kb_number.split(',') }}"
+ 
+    - debug:
+        var: KB_Number
+   
+    - name: Search-only, return list of found updates (if any), log to C:\ansible_wu.txt
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        state: searched
+      register: output
+      run_once: true
+      when: ping_result.failed == false
+     
+    - debug:
+        var: output
+      run_once: true
+      
+    - name: Print message if KB number not found in updates
+      debug:
+        msg: "KB not found in updates."
+      when:
+        - ping_result.failed == false
+        - output is defined 
+        - not (output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0)
+        
+    - name: Print message if KB number not found in updates
+      win_shell: |
+        echo "KB not found in updates or else it is already installed." > Nochange_Uninstallapp
+      when:
+        - ping_result.failed == false
+        - output is defined 
+        - not (output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0)
+
+     
+    - name: KB_Number list is  empty. Please enter the KB_number
+      meta: end_play
+      when: KB_Number[0] == ""
+     
+    - name: Install only particular updates based on the KB numbers
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        #reboot: true
+        accept_list: "{{ item }}"
+      register: updated_patch
+      with_items: "{{ KB_Number }}"
+      when:
+        - ping_result.failed == false
+        - output is defined
+        - output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0
+ 
+    - name: Check installed status after installing updates
+      debug:
+        msg: "Updates were installed successfully"
+      when:
+        - ping_result.failed == false
+        - output is defined
+        - output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0
+        
+    - name: Check installed status after installing updates
+      win_shell: |
+        echo "Updates were installed successfully." > passed_Uninstallapp
+      when:
+        - ping_result.failed == false
+        - output is defined
+        - output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0
+        
+#     - name: Reboot the server
+#       win_reboot:
+#         reboot_timeout: 600
+#         msg: "Rebooting the server"
+#       run_once: true
+#       when:
+#         - ping_result.failed == false 
+#         - output is defined
+#         - output.updates | map(attribute='kb') | flatten | intersect(KB_Number) | length > 0
+ 
+#     - debug:
+#         var: updated_patch
+
+#     - name: Check post-reboot status
+#       debug:
+#         msg: "Post-reboot checks completed successfully" 
+#       when:
+#         - ping_result.failed == false
+#         - updated_patch.reboot_required == true
+#         - updated_patch.changed == true
+        
+#     - name: print msg after reboot 
+#       win_shell: |
+#         echo "Post-reboot checks completed successfully" > post_Uninstallapp
+#       when:
+#         - ping_result.failed == false
+#         - updated_patch.reboot_required == true
+#         - updated_patch.changed == true
+

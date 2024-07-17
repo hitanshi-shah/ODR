@@ -1,0 +1,9 @@
+[windows]
+10.147.179.220
+10.147.179.211
+[windows: vars]
+ansible_connection=winrm
+ansible_user=prvcloudusr
+ansible_password=aznlS@G6yhXD
+ansible_winrm_server_cert_validation=ignore
+ansible_port=5985

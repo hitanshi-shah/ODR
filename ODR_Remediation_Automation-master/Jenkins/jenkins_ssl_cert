@@ -1,0 +1,65 @@
+pipeline{
+     agent {
+       docker {
+             image 'harimaumalaya:v0.0.1j'
+             label 'docker'
+             registryUrl 'https://046099537821.dkr.ecr.us-east-1.amazonaws.com'
+	         args '-u root'
+	         reuseNode true
+
+       }
+   }
+    parameters {
+    
+         
+     string(name: 'server_ip', defaultValue: '', description: 'Server IP for Ansible')
+	 string(name: 'ansible_user', defaultValue: '', description: 'Enter your user_name')
+	 password(name: 'ansible_password', defaultValue: '', description: 'Enter your user_pass')
+	 password(name: 'ansible_become_password', defaultValue: '', description: 'Enter your user_become')
+	 //password(name: 'GIT_TOKEN', defaultValue: '', description: 'Enter your GIT_TOKEN')
+	 //string(name: 'region', defaultValue: '', description: 'Enter region of the server')
+	 string(name: 'website_list', defaultValue: '', description: 'Enter website')
+	
+	}
+
+   stages {
+      stage('Install Ansible'){
+          steps{
+		        script{  
+                  sh """
+		                apt-get update
+                    apt-get install -y ansible
+                    pip install boto3
+                    ls -ltr /usr/bin/*
+                    ansible --version
+                    which pip
+                    which python
+                    python3 -m pip install boto3
+		                pwd
+	                  ls -ltr
+                    """
+            }
+	    }
+     }
+    
+      stage('To Generate CSR and key of the website') { 
+            steps {
+                script {  
+		       echo "Server IP: ${params.server_ip}"
+                       echo "Ansible User: ${params.ansible_user}"
+                       echo "Website List: ${params.website_list}"
+                          sh '''
+                          ansible-playbook  -i ${server_ip}, ssl_cert.yml \
+                          -e "server_ip=\\"${server_ip}\\""\
+                          -e "ansible_user=\\"${ansible_user}\\""\
+                          -e "website_list=${website_list}" \
+                          -e "ansible_password=\\"${ansible_password}\\""\
+                          -e "ansible_become_password=\\"${ansible_password}\\""
+			               ls -lart
+                          '''
+                        }
+             }
+       }
+      
+   }
+}      

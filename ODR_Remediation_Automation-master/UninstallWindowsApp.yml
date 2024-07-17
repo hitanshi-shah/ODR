@@ -1,0 +1,110 @@
+---
+- name: Uninstall Application from the windows machine from the particular path
+  hosts: all
+  gather_facts: yes
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"' 
+    ansible_winrm_transport: ntlm
+    ansible_password: '"{{ ansible_password }}"' 
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+  tasks:
+    - name: Check server connectivity with win_ping
+      win_ping:
+      register: ping_result
+      ignore_errors: yes
+    
+    
+    - name: Fail if server is not reachable
+      fail:
+        msg: "Server is not reachable. Check server connectivity."
+      when: ping_result.failed == true
+      
+    - name: delete file for no change
+      win_file:
+        path: Nochange_Uninstallapp
+        state: absent
+        
+    - name: Delete file
+      win_file:
+        path: passed_Uninstallapp
+        state: absent
+        
+    - name: Delete file for failed
+      win_file:
+        path: post_Uninstallapp
+        state: absent
+      
+    - name: Check if Application exists
+      win_shell: "{{ check_command }}"
+      register: uninstall_app
+      changed_when: false
+      when: ping_result.failed == false
+     
+    - name: Debug uninstall_app
+      debug:
+        var: uninstall_app.stdout
+      when: ping_result.failed == false
+      
+    - name: application name
+      debug:
+        var: application_name_or_path
+      
+    - name: Uninstall Application if application exists
+      win_shell: "{{ uninstall_command }}"
+      register: uninstall_result
+      when: ping_result.failed == false and ( uninstall_app.stdout == application_name_or_path ~ '\r\n' or uninstall_app.stdout == 'True\r\n' )
+      
+      
+#     - name: Debug uninstall_app
+#       debug:
+#         var: uninstall_result.stdout
+#       when: ping_result.failed == false  
+      
+    - name: Print message if uninstall application doesn't exist
+      debug:
+        msg: "application not found." 
+      when: ping_result.failed == false and ( uninstall_app.stdout == '' or uninstall_app.stdout == 'False\r\n' )
+      
+    - name: Store the info if it is failed to uninstall the application
+      win_shell: |
+        echo "application not found." > Nochange_Uninstallapp
+      when: ping_result.failed == false and ( uninstall_app.stdout == '' or uninstall_app.stdout == 'False\r\n' )
+
+    - name: Check if application was uninstalled successfully
+      #command: "{{ check_command }}"
+      win_shell: "{{ check_command }}"
+      register: uninstall_status
+      changed_when: false
+      ignore_errors: yes
+      #when: ping_result.failed == false and uninstall_result is defined and uninstall_result.stdout != ''
+      when: ping_result.failed == false and ( uninstall_app.stdout == application_name_or_path ~ '\r\n' or uninstall_app.stdout == 'True\r\n' )
+
+    - name: Print message if Application is deleted
+      debug:
+        msg: "Application got deleted"
+      when: ping_result.failed == false and ( uninstall_app.stdout == application_name_or_path ~ '\r\n' or uninstall_app.stdout == 'True\r\n' )
+      
+    - name: Store the info if it is failed to uninstall the application
+      win_shell: |
+        echo "application got deleted." > passed_Uninstallapp
+      when: ping_result.failed == false and ( uninstall_app.stdout == application_name_or_path ~ '\r\n' or uninstall_app.stdout == 'True\r\n' )
+      
+    - name: Print Uninstall Result
+      debug:
+        var: uninstall_result
+        
+    - name: Store the info if it is passed to uninstall the application
+      win_shell: |
+        echo "application got deleted." > post_Uninstallapp
+      when: ping_result.failed == false and ( uninstall_app.stdout == application_name_or_path ~ '\r\n' or uninstall_app.stdout == 'True\r\n' )
+
+
+
+
+
+
+#------ >  command to run the playbook 
+
+#ansible-playbook -i inventory_file your_playbook.yml -e "install_path='C:\\Program Files' application_name='Notepad++\\uninstall.exe' uninstall_command='Start-Process -FilePath \"{{ install_path }}\\{{ application_name }}\" -ArgumentList '/S' -Wait' check_command='Test-Path \"{{ install_path }}\\{{ application_name }}\"'"

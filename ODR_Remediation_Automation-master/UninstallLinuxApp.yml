@@ -1,0 +1,105 @@
+# Playbook for  --- precheck commands, actual execution commands and post-check commands, package, new_version  
+#-----> Converted all the commands in Variables
+---
+- name: Uninstall the application for linux server
+  hosts: all
+  become_user: root
+  become: yes
+  become_method: dzdo
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    ansible_become_password: "{{ ansible_password }}"
+#   vars_files:
+#     - vars.yml
+#     app_location_version: "/usr/lib/jvm/java-11-openjdk-11.0.20.0.8-3.el8.x86_64/bin/java"
+#     application: "Oracle java"
+#     version_command: "rpm -qf '{{ app_location_version }}'"
+#     uninstall_command: "yum remove -y '{{ rpm_output.stdout }}'"
+#     check_path_command: "stat '{{ app_location_version }}'" 
+  tasks:
+    - name: Check if the server is up (ping)
+      ping:
+      register: ping_result
+      
+    - name: delete file for no change
+      file:
+        path: /tmp/Nochange_Updatepackage
+        state: absent
+        
+    - name: Delete file
+      file:
+        path: /tmp/Passed_Updatepackage
+        state: absent
+        
+    - name: Delete file for failed
+      file:
+        path: /tmp/post_Updatepackage
+        state: absent
+
+    - name: Display a message if the server is not up
+      debug:
+        msg: "Server is not up, cannot proceed with further tasks"
+      when: ping_result.failed == true
+      
+    - name: Verify if {{ application }} is installed
+      stat:
+        path: "{{ app_location_version }}"
+      register: app_path
+      when: ping_result.failed == false
+      
+    - name: Display message if {{ application }} is not installed
+      debug:
+        msg: "{{ application }} is not installed"
+      when: app_path.stat.exists == false and ping_result.failed == false
+      
+    - name: Store the info if it is not installed for the specific version
+      shell: 
+        echo "Application is not installed" > /tmp/Nochange_Updatepackage
+      when: app_path.stat.exists == false and ping_result.failed == false
+      
+    - name: Command to see the version of the {{ application }}
+      shell: "{{ version_command }}"
+      register: rpm_output
+      changed_when: false
+      become: true
+      when: ping_result.failed == false and app_path.stat.exists == true
+      
+    - name: Display RPM package info
+      debug:
+        var: rpm_output.stdout
+      when: ping_result.failed == false and app_path.stat.exists == true
+
+    - name: Uninstall the {{ application }} version
+      #command: "{{ uninstall_command }}"
+      command: "{{ uninstall_command }} '{{ rpm_output.stdout }}'"
+      become: true
+      when: ping_result.failed == false and app_path.stat.exists == true
+
+    - name: Check if path exists
+      command: "{{ check_path_command }}"
+      register: path_status
+      ignore_errors: yes
+      when: ping_result.failed == false and app_path.stat.exists == true
+      
+    - name: Print message if path is deleted
+      debug:
+        msg: "Application got deleted"
+      when: ping_result.failed == false and app_path.stat.exists == true
+      
+    - name: Store the info if it is able to delete the package for the specific version
+      shell: 
+        echo "Application got deleted" > /tmp/Passed_Updatepackage
+      when: ping_result.failed == false and app_path.stat.exists == true
+      
+    - name: Store the info if it is able to delete the package for the specific version
+      shell: 
+        echo "Application got deleted successfully" > /tmp/post_Updatepackage
+      when: ping_result.failed == false and app_path.stat.exists == true
+      
+#     - name: Print message if path does not exist
+#       debug:
+#         msg: "Application path does not exist"
+#       when: app_path.stat.exists == false and ping_result.failed == false

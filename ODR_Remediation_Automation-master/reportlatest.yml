@@ -1,0 +1,227 @@
+---
+- name: Generate an HTML report from jinja template
+  hosts: "{{ server_ip }}"
+  gather_facts: yes
+  vars:
+ 
+    #random settings
+    csv_path: /tmp
+    csv_filename: report.csv
+    #headers: Hostname,Ping,Distro Ver,Kernel Ver,Last Rebooted,Disk Space,Prechecks, Diskcheck, RHSA_Precheck, Patching, RHSA_Postcheck, Link
+    headers: Hostname, Ping, precheck status, Remediation status, Postcheck status, Incident
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    qualys_id: "{{ qualys_id }}"
+    type: "{{ type }}"
+    platform: "{{ platform }}"
+
+ 
+  tasks:
+
+  - name: test connnect
+    block:
+        - ping:
+          register: server_avail
+          timeout: 3
+          ignore_errors: yes
+    always:
+        - name: write details
+          shell: |
+            echo "{{ server_ip }}" passed
+          when: server_avail.failed is false
+          register: server_availf
+          delegate_to: localhost
+
+        - name: write details
+          shell: |
+            echo "{{ server_ip }}" failed
+          when: server_avail.failed is true
+          register: server_availfail
+          delegate_to: localhost
+
+  - name: Ping set fact
+    set_fact:
+      ping: Passed
+    when: server_availf.failed is false
+
+
+  - name: Ping set fact
+    set_fact:
+      pinged: Failed
+    when: server_availfail.failed is true
+
+  - name: Ping set fact
+    set_fact:
+      pinged:
+    when: not server_availfail.failed is true
+
+  
+
+  - name: RHSA Satellite 
+    stat:
+      path: Subscriptionpassed_hosts
+    register: precheck_pass_subscription
+    ignore_errors: true
+    delegate_to: localhost
+
+  - name: RHSA statellite set fact for passed host
+    set_fact:
+      precheck_pass_rhsa: Passed
+    when: precheck_pass_subscription.stat.exists
+    delegate_to: localhost
+    
+  - name: RHSA statellite empty for passed 
+    set_fact:
+      precheck_pass_rhsa:
+    when: not precheck_pass_subscription.stat.exists
+    delegate_to: localhost
+
+   
+  - name: RHSA satellite failed hosts name
+    stat:
+      path: subscription_failed
+    register: precheck_fail_subscription
+    ignore_errors: true
+    delegate_to: localhost
+
+  - name: RHSA satellite for failed hosts
+    set_fact:
+      precheck_fail_rhsa: Failed
+    when: precheck_fail_subscription.stat.exists
+    delegate_to: localhost
+    
+  - name: RHSA satellite for failed empty hosts
+    set_fact:
+      precheck_fail_rhsa: 
+    when: not precheck_fail_subscription.stat.exists
+    delegate_to: localhost
+
+  - name: Update Uninstall package passed 
+    stat:
+      path: /tmp/Passed_Updatepackage
+    register: precheck_pass_Update
+    ignore_errors: true
+
+  - name: set fact for Update Uninstall package passed
+    set_fact:
+      precheck_pass_Updateapp: Passed
+    when: precheck_pass_Update.stat.exists
+
+  - name: set fact for empty passed 
+    set_fact:
+      precheck_pass_Updateapp:
+    when: not precheck_pass_Update.stat.exists
+
+   
+  - name: Update uninstall for failed 
+    stat:
+      path: /tmp/Nochange_Updatepackage
+    register: precheck_fail_Update
+    ignore_errors: true
+
+  - name: Update uninstall for failed host 
+    set_fact:
+      precheck_fail_Updateapp: No change
+    when: precheck_fail_Update.stat.exists
+
+  - name: Update uninstall for empty failed host
+    set_fact:
+      precheck_fail_Updateapp: 
+    when: not precheck_fail_Update.stat.exists
+    
+  - name: post check after remediation 
+    stat:
+      path: /tmp/post_Updatepackage
+    register: postcheck_Update
+    ignore_errors: true
+
+  - name: post check after remediation 
+    set_fact:
+      postcheck_pass_Updateapp: Passed
+    when: postcheck_Update.stat.exists
+
+  - name: post check after remediation 
+    set_fact:
+      postcheck_pass_Updateapp: No change
+    when: not postcheck_Update.stat.exists
+    
+   
+    
+
+  # - name: Set link value
+  #   stat:
+  #     path: /tmp/patchfailed
+  #   register: linkstat
+  #   ignore_errors: true
+    
+  # - name: Set Link
+  #   set_fact:
+  #     linkstat_status: https://github.aig.net/sashanmu/aig_patching_automation/blob/master/{{ inventory_hostname }}_records
+  #   when: linkstat.stat.exists
+   
+  # - name: Create a hyperlink
+  #   set_fact:
+  #      hyperlink: "<a href='{{ linkstat_status }}'>{{ linkstat_status }}</a>"
+  #   when: linkstat.stat.exists
+ 
+
+  # - name: unSet Link
+  #   set_fact:
+  #     hyperlink: N/A
+  #   when: not linkstat.stat.exists
+    
+    
+  - name: Incident check
+    stat:
+      path: subscription_issue_INCraised
+    register: incident
+    ignore_errors: true
+    delegate_to: localhost
+
+  - name: Post ivp fact
+    set_fact:
+      incident_status: INCraised
+    when: incident.stat.exists
+    delegate_to: localhost
+    
+  - name: Post ivp fact
+    set_fact:
+      incident_status: N/A
+    when: not incident.stat.exists
+    delegate_to: localhost
+
+  - name: Save CSV headers
+    ansible.builtin.lineinfile:
+      dest: "{{ csv_path }}/{{ csv_filename }}"
+      line: "{{ headers }}"
+      create: true
+      state: present
+    delegate_to: localhost
+    run_once: true
+ 
+  - name: Build out CSV file
+    ansible.builtin.lineinfile:
+      dest: "{{ csv_path }}/{{ csv_filename }}"
+      line: "{{ server_ip }}, {{ ping }} {{ pinged }}, {{ precheck_pass_rhsa }} {{ precheck_fail_rhsa }}, {{ precheck_pass_Updateapp }} {{ precheck_fail_Updateapp }}, {{ postcheck_pass_Updateapp }}, {{ incident_status }}"
+      create: true
+      state: present
+    delegate_to: localhost
+ 
+  - name: Read in CSV to variable
+    community.general.read_csv:
+      path: "{{ csv_path }}/{{ csv_filename }}"
+    register: csv_file
+    delegate_to: localhost
+    run_once: true
+
+ 
+  - name: Save job report to {{ csv_path }}
+    delegate_to: localhost
+    delegate_facts: True
+    run_once: yes
+    template:
+        src: report.html.j2
+        dest: "{{ csv_path }}/{{ server_ip }}.html"
+        remote_src: yes

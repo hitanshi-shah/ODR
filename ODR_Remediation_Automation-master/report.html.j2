@@ -1,0 +1,57 @@
+<html>
+    <head>
+        <style>
+        table {
+          font-family: arial, sans-serif;
+          border-collapse: collapse;
+          width: 100%;
+        }
+        
+        td, th {
+          border: 1px solid #dddddd;
+          text-align: left;
+          padding: 8px;
+        }
+        
+        tr:nth-child(odd) {
+          background-color: #dddddd;
+        }
+
+        .myDiv {
+            border: 5px outset red;
+            background-color: lightblue;    
+            text-align: center;
+            
+        }
+        </style>
+    </head>
+        
+    <body>
+        <img src="AIG-logo1.png" width="50" height="30" align="right">
+        <div class="myDiv">
+            <h2>ODR report</h2>
+            <p>Change Request #CH001354799  </p>
+            <p>Execution date & time : 22-Sep 6:00 PM  </p>
+            <p> Qualys_id: {{ qualys_id }} </p>
+            <p> Type: {{ type }} </p>
+            <p> Platform: {{ platform }} </p>
+          </div>
+          
+        
+        <table style="border: 1px solid black; border-collapse: collapse;">
+        <tr>
+            {% for header in headers.split(",") %}
+            <th style="border: 1px solid black; padding: 8px 16px;">{{ header }}</th>
+            {% endfor %}
+        </tr>
+       {% for host in csv_file.list %}
+         <tr>
+            {% for header in headers.split(",") %}
+            <td style="border: 1px solid black; padding: 8px 16px;">{{ host[header] }}</td>
+            {% endfor %}
+         </tr>
+        {% endfor %}
+        </table>
+
+    </body>
+</html>

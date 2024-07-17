@@ -1,0 +1,83 @@
+---
+- name: Install Microsoft ODBC Driver for SQL Server
+  hosts: localhost
+  gather_facts: false
+  vars:
+    github_token: "{{ GIT_TOKEN }}"
+#     ansible_connection: winrm
+#     ansible_user: 'R1-CORE\"{{ ansible_user }}"' 
+#     ansible_winrm_transport: ntlm
+#     ansible_password: '"{{ ansible_password }}"' 
+#     ansible_winrm_server_cert_validation: ignore
+#     ansible_port: 5985
+    
+  tasks:
+    - name: Debug GitHub variables
+      debug:
+        var: github_token
+        
+#     - name: Download MSI file from GitHub
+#       win_uri:
+#         url: "{{ msi_url }}"
+#         dest: "C:\\Odbc\\msodbcsql_17.msi"
+#         force_basic_auth: yes
+#         user: "{{ ansible_user }}"
+#         password: "{{ ansible_password }}"
+#         validate_certs: no  # Change to yes if needed
+#       register: download_msi
+#       ignore_errors: no  # Ensure that errors are not ignored
+       
+      
+#     - name: Download MSI file from GitHub
+#       win_get_url:
+#         url: "https://{{ github_token }}@github.aig.net/hshah/ODR_Remediation_Automation/raw/master/msifiles/msodbcsql_17.msi"
+#         dest: "C:\\Odbc\\msodbcsql_17.msi"
+#         timeout: 120
+#       register: download_msi
+#       #when: not is_driver_installed
+#       ignore_errors: yes
+      
+      
+#     - name: Copying .msi file
+#       win_copy:
+#         src: "/jenkins/work"
+#         dest: "C:\\Odbc\\msodbcsql_17.msi"
+#         #remote_src: true
+      
+#     - name: Install MSI file
+#       win_package:
+#         path: "C:\\Temp\\MicrosoftODBC_{{ msi_version }}.msi"
+#         state: present
+#       register: install_msi
+#       #when: not is_driver_installed and download_msi|failed
+      
+#     - name: Configure Git user identity
+#       git_config:
+#         name: user.name
+#         value: "hshah"
+#       #delegate_to: localhost
+
+#     - name: Configure Git user email
+#       git_config:
+#         name: user.email
+#         value: "hitanshi.shah@aig.com"
+#       #delegate_to: localhost
+
+    - name: Clone GitHub repository    
+      git:
+        repo: "https://{{ GIT_TOKEN }}@github.aig.net/hshah/ODR_Remediation_Automation.git"
+        dest: /jenkins/work
+        version: "master"
+        clone: yes
+      async: 3000
+      poll: 5
+      ignore_errors: yes
+      delegate_to: localhost
+      register: repo
+      
+    - debug:
+        msg: "{{ repo }}"
+      delegate_to: localhost
+        
+
+     

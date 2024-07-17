@@ -1,0 +1,80 @@
+---
+- name: Get License Details of Windows VM
+  hosts: all
+  gather_facts: yes
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password }}"'
+    server_ip: "{{ server_ip }}"
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_transport: ntlm
+    ansible_port: 5985
+
+  tasks:
+    - name: Execute PowerShell Command
+      win_shell: |
+        $winlicense = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" | where { $_.PartialProductKey }
+        $winlicense | ConvertTo-Json
+      register: license_info
+      failed_when: license_info.rc != 0  # Check if the task failed
+
+    - name: Store license information if successful
+      set_fact:
+        license_result: "{{ license_info.stdout_lines }}"
+      when: license_info.rc == 0 
+
+    - name: Store hostname if successfull
+      win_shell: |
+        echo "{{ server_ip }}" > passed_LS_{{ server_ip }}
+      when: license_info.rc == 0     
+      
+    - name: Store hostname if failed
+      win_shell: | 
+        echo "{{ server_ip }}" > Failed_LS_{{ server_ip }}
+      when: license_info.rc != 0 
+      
+
+    - name: Display License Information
+      debug:
+        var: license_result  
+        
+    - name: Execute PowerShell Command for remediating
+      win_shell: |
+        slmgr.vbs /skms kms.aig.net:1688
+        slmgr.vbs /ato
+      register: remediation_info
+      when: license_info.rc != 0 
+
+        
+        
+    - name: Execute PowerShell Command to check the status
+      win_shell: |
+        $winlicense = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" | where { $_.PartialProductKey }
+        $winlicense | ConvertTo-Json
+      register: license_info
+      failed_when: license_info.rc != 0  # Check if the task failed
+        
+    - name: Store hostname if failed again
+      win_shell: | 
+        echo "{{ server_ip }}_INCIDENT_Created" > Failed_LS_{{ server_ip }}_INC
+      when: license_info.rc != 0         
+        
+    - name: Fetch files from remote host
+      fetch:
+        src: passed_LS_{{ server_ip }}
+        dest: ./
+        flat: yes
+        ignore_errors: yes
+      when: license_info.rc == 0   
+ 
+   
+
+    - name: Fetch files from remote host
+      fetch:
+        src: failed_LS_{{ server_ip }}
+        dest: ./  
+        flat: yes
+        ignore_errors: yes     
+      when: license_info.rc != 0 
+      

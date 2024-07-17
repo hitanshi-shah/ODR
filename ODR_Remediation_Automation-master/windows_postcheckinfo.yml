@@ -1,0 +1,64 @@
+---
+- name: Get License Details of Windows VM
+  hosts: all
+  gather_facts: yes
+
+  vars:  
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password }}"'
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_transport: ntlm
+    ansible_port: 5985
+    
+  #ignore_unreachable: yes
+  tasks:
+  
+    - name: Get System Information
+      win_shell: |
+        Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object -ExpandProperty LastBootUpTime
+      register: system_info
+
+    - name: Get System Information
+      win_shell: |
+        Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object -Property TotalVisibleMemorySize, FreePhysicalMemory
+      register: system_info1
+ 
+ 
+    - name: Get System Information
+      win_shell: |
+        Get-Service | Where-Object { $_.Status -eq "Running" } | Select-Object -Property DisplayName, Status
+      register: system_info2
+ 
+ 
+    - name: Get System Information
+      win_shell: |
+        Get-Counter -Counter "\Processor(_Total)\% Processor Time" | Select-Object -ExpandProperty CounterSamples | Select-Object -ExpandProperty CookedValue
+      register: system_info3
+      
+    - debug: 
+         var: system_info1.stdout
+    - debug:      
+         var: system_info.stdout
+    - debug: 
+         var: system_info2.stdout
+    - debug: 
+         var: system_info3.stdout
+ 
+    - name: Get System Information
+      win_shell: |
+            echo "**CPU LOG**" > info_logs_{{ inventory_hostname }}
+            echo "{{ system_info.stdout }}"  > postinfo_logs_{{ inventory_hostname }}
+            echo "{{ system_info1.stdout }}" > postinfo_logs_{{ inventory_hostname }}
+            echo "{{ system_info2.stdout }}" > postinfo_logs_{{ inventory_hostname }}
+
+    - name: Get System Information
+      win_shell: |
+            echo "**CPU LOG**" >> postreachable
+            
+    - name: Fetch files from remote host
+      fetch:
+        src: postinfo_logs_{{ inventory_hostname }}
+        dest: ./  
+        flat: yes
+        ignore_errors: yes  

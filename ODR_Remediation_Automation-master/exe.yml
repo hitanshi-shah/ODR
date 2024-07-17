@@ -1,0 +1,31 @@
+---
+- name: cloning the repo
+  hosts: localhost
+  gather_facts: false
+  vars:
+    github_token: "{{ GIT_TOKEN }}"
+    
+  tasks:
+    - name: Debug GitHub variables
+      debug:
+        var: github_token
+      
+
+    - name: Clone GitHub repository    
+      git:
+        repo: "https://{{ GIT_TOKEN }}@github.aig.net/hshah/ODR_Remediation_Automation.git"
+        dest: /jenkins/work
+        version: "master"
+        clone: yes
+      async: 3000
+      poll: 5
+      ignore_errors: yes
+      delegate_to: localhost
+      register: repo
+      
+    - debug:
+        msg: "{{ repo }}"
+      delegate_to: localhost
+        
+
+     

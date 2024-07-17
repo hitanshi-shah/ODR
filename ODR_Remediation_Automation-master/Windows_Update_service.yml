@@ -1,0 +1,66 @@
+---
+- name: Get Windows Update Service Information from Windows VM
+  hosts: "{{ server_ip }}"
+  gather_facts: yes
+  vars:
+    ansible_connection: winrm
+    ansible_user:  'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password }}"'
+    server_ip: "{{ server_ip }}"
+    ansible_winrm_server_cert_validation: ignore
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_winrm_transport: ntlm
+    ansible_port: 5985
+
+  tasks:
+    - name: Get Windows Update Service Information
+      win_service:
+        name: wuauserv
+      register: windows_update_service_info
+
+    - name: Display Windows Update Service Information
+      debug:
+        var: windows_update_service_info
+        
+    - name: Start Windows Update Service Information
+      win_service:
+        name: wuauserv
+        state: started
+      when: "'stopped' in windows_update_service_info.state"
+      
+    - name: Get Windows Update Service Information
+      win_service:
+        name: wuauserv
+      register: start_windows_update_service_info
+
+    - name: Save Successful Host IP Addresses
+      win_shell: |
+          echo "{{ server_ip }}" > passed_windowsup_{{ server_ip }}
+      when: "'running' in start_windows_update_service_info.state"
+      args:
+        executable: powershell.exe
+
+    - name: Save Failed Host IP Addresses
+      win_shell: |
+          echo "{{ server_ip }}" > failed_windowsup_{{ server_ip }}
+      when: "'stopped' in start_windows_update_service_info.state"
+      args:
+        executable: powershell.exe
+
+    - name: Fetch files from remote host
+      fetch:
+        src: passed_windowsup_{{ server_ip }}
+        dest: ./
+        flat: yes
+        ignore_errors: yes
+      when: "'running' in start_windows_update_service_info.state"
+      
+    - name: Fetch files from remote host
+      fetch:
+        src: failed_windowsup_{{ server_ip }}
+        dest: ./
+        flat: yes
+        ignore_errors: yes     
+      when: "'stopped' in start_windows_update_service_info.state" 
+      
+      

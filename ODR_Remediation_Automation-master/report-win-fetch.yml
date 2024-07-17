@@ -1,0 +1,70 @@
+---
+- name: Generate an HTML report from jinja template
+  hosts: localhost
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password}}"'
+    ansible_winrm_transport: ntlm
+    #headers: Hostname, Patching group, Prepatch reboot status, Prepatch IVP checks, Patch status, Postpatch status, Post reboot status, Incident, Git link
+    headers: Hostname, Ping, Win_Update_Precheck, LS_Precheck, FW_Precheck, Remediation_Status, Postcheck_status, Incident
+    qualys_id: "{{ qualys_id }}"
+    type: "{{ type }}"
+    platform: "{{ platform }}"
+
+
+  tasks:
+
+#   - name: Save CSV headers
+#     ansible.builtin.lineinfile:
+#       dest: "./report1.csv"
+#       line: "{{ headers }}"
+#       create: true
+#       state: present
+#     delegate_to: localhost
+#     run_once: true
+
+  - name: Read in CSV to variable
+    community.general.read_csv:
+      path: "./{{ server_ip }}_win1.csv"
+    register: csv_file
+    delegate_to: localhost
+    run_once: true
+    
+  - debug:
+      var: csv_file
+
+  - name: delete old html file
+    delegate_to: localhost
+    file:
+      path: "./{{ server_ip }}_win.html"
+      state: absent
+    
+  - name: to show files
+    delegate_to: localhost
+    command: ls -lart
+    
+#   - name: to show content of the file
+#     delegate_to: localhost
+#     shell: cat "./{{ server_ip }}_win.html"
+       
+        
+  - name: Save job report to {{ csv_path }}
+    delegate_to: localhost
+    template:
+        src: report.html.j2
+        dest: "./{{ server_ip }}_win.html"
+        remote_src: yes
+    register: html_file
+        
+  - debug:
+      var: html_file
+ 
+  - name: to show content of the file
+    delegate_to: localhost
+    command: cat "./{{ server_ip }}_win.html"
+      
+  - name: to show files
+    delegate_to: localhost
+    command: ls -lart

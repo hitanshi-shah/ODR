@@ -1,0 +1,191 @@
+---
+- name: Update Windows Server TLS/SSL Configuration
+  hosts: all
+  gather_facts: no
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"' 
+    ansible_winrm_transport: ntlm
+    ansible_password: '"{{ ansible_password }}"' 
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+  tasks:
+    - name: Check server connectivity with win_ping
+      win_ping:
+      register: ping_result
+      ignore_errors: yes
+
+    - name: Fail if server is not reachable
+      fail:
+        msg: "Server is not reachable. Check server connectivity."
+      when: ping_result.failed == true
+      
+    - name: delete file for no change
+      win_file:
+        path: Nochange_Uninstallapp
+        state: absent
+        
+    - name: Delete file
+      win_file:
+        path: passed_Uninstallapp
+        state: absent
+        
+    - name: Delete file for failed
+      win_file:
+        path: post_Uninstallapp
+        state: absent
+
+    - name: Debug tls_settings_list
+      debug:
+        var: tls_settings_list
+
+    - name: Debug registry_base_path
+      debug:
+        var: registry_base_path
+        
+        
+    - name: Check if main folders exist
+      win_reg_stat:
+        path: "{{ registry_base_path }}\\{{ item.key }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      register: folder_info
+      check_mode: yes
+
+    - name: Check if subfolders exist
+      win_reg_stat:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      register: subfolder_info
+      check_mode: yes
+      
+#     - name: Print message if the registery is already updated
+#       debug:
+#         msg: "Registery is already updated." 
+#       when:
+#         - ping_result.failed == false
+#         - (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(true)
+        
+    - name: Print result if the registery is already updated
+      win_shell: |
+        echo "Registery is already updated." > Nochange_Uninstallapp
+      with_items: "{{ tls_settings_list }}"
+      when:
+        - ping_result.failed == false
+        - (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(true) 
+        
+    
+
+    - name: Create main folders
+      win_file:
+        path: "{{ registry_base_path }}\\{{ item.key }}"
+        state: directory
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      register: folder_details
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+    
+    - debug:
+        var: folder_details
+        
+    - name: Create subfolders
+      win_file:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+        state: directory
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+
+    - name: Update Windows Registry for subkeys
+      win_regedit:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+        name: Enabled
+        state: present
+        type: dword
+        data: "{{ item.enabled }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+        
+    - name: Print result if the registery is updated
+      win_shell: |
+        echo "Registery updated Successfully." > passed_Uninstallapp
+      with_items: "{{ tls_settings_list }}"
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)    
+        
+    - name: Reboot the server
+      win_reboot:
+        reboot_timeout: 600
+        msg: "Rebooting to apply TLS settings"
+      run_once: true
+      when:
+        - ping_result.failed == false
+        - folder_details.results | selectattr('changed', 'equalto', true) | list | count > 0
+
+    
+    - name: Wait for server to come back online
+      wait_for_connection:
+        timeout: 600
+      #with_items: "{{ tls_settings_list}}"
+      when:
+        - ping_result.failed == false
+        - folder_details.results | selectattr('changed', 'equalto', true) | list | count > 0
+
+    - name: Check if the folder is created with the value
+      win_regedit:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+        name: Enabled
+        state: present
+        type: dword
+        data: "{{ item.enabled }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+    - name: Print Result after reboot
+      debug:
+        var: after_reboot_stat
+      with_items: "{{ tls_settings_list }}"
+      when:
+        - ping_result.failed == false
+        - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+        
+    - name: Post result if the registery is update
+      win_shell: |
+        echo "Registery updated Successfully." > post_Uninstallapp
+      with_items: "{{ tls_settings_list }}"
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false) 
+
+#   when:
+#     - ping_result.failed == false
+
+#     - name: Loop through multiple registry_base_paths
+#       include_tasks: update_tls.yml
+#       loop: "{{ registry_base_path }}"
+#       loop_control:
+#         loop_var: registry_base_path

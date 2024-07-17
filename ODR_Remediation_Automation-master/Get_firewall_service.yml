@@ -1,0 +1,68 @@
+---
+- name: Get Firewall Service Registry Information from Windows VM
+  hosts: all
+  gather_facts: no
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"'
+    ansible_password: '"{{ ansible_password }}"'
+    server_ip: "{{ server_ip }}"
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_transport: ntlm
+    ansible_port: 5985    
+  tasks:
+    - name: Execute PowerShell Command
+      win_shell: |
+              Get-Service -Name MpsSvc | Select-Object -ExpandProperty Status
+      register: firewall_service_info
+
+    - name: Display Firewall Service Registry Information
+      debug:
+        var: firewall_service_info.stdout_lines
+        
+    - name: Save Successful Host IP Addresses      
+      win_shell: |
+           echo "{{ server_ip }}" > passed_fw_{{ server_ip }}
+      when: '"Running" in firewall_service_info.stdout_lines'
+      
+      
+    - name: Save Failed  Host IP Addresses      
+      win_shell: |
+           echo "{{ server_ip }}" > failed_fw_{{ server_ip }}
+      when: '"Stopped" in firewall_service_info.stdout_lines'
+        
+      
+    - name: Perform remediation
+      win_shell: |
+              Start-Service -Name MpsSvc | Select-Object -ExpandProperty Status
+      register: firewallrem_service_info    
+      when: '"Stopped" in firewall_service_info.stdout_lines'
+      
+    - name: verify the remediation
+      win_shell: |
+              Get-Service -Name MpsSvc | Select-Object -ExpandProperty Status
+      register: firewall_service_info
+
+    - name: If remediation didnt work 
+      win_shell: | 
+        echo "{{ server_ip }}_INCIDENT_Created" > Failed_LS_{{ server_ip }}_INC
+      when: firewall_service_info.rc != 0  
+      
+      
+    - name: Fetch files from remote host
+      fetch:
+        src: passed_fw_{{ server_ip }}
+        dest: ./  
+        flat: yes
+      when: '"Running" in firewall_service_info.stdout_lines'
+
+
+    - name: Fetch files from remote host
+      fetch:
+        src: failed_fw_{{ server_ip }}
+        dest: ./  
+        flat: yes
+      when: '"Stopped" in firewall_service_info.stdout_lines'
+
+
+   

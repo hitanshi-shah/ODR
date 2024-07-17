@@ -1,0 +1,70 @@
+---
+- name: Update Variable File in GitHub
+  hosts: localhost
+  gather_facts: false
+  become_user: root
+  become: yes
+  become_method: dzdo    
+  
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    ansible_become_password: "{{ ansible_password }}" 
+
+  
+  tasks:       
+    - name: Debug GitHub variables
+      debug:
+        var: github_token
+        
+    - name: Configure Git user identity
+      git_config:
+        name: user.name
+        value: "hshah"
+
+    - name: Configure Git user email
+      git_config:
+        name: user.email
+        value: "hitanshi.shah@aig.com"
+        
+
+    - name: Clone GitHub repository    
+      git:
+        repo: "https://{{ GIT_TOKEN }}@github.aig.net/hshah/ODR_Remediation_Automation.git"
+        dest: /jenkins/work
+        version: "master"
+        clone: yes
+      async: 3000
+      poll: 5
+      ignore_errors: yes
+      delegate_to: localhost
+      register: repo
+      
+    - debug:
+        msg: "{{ repo }}"
+        
+ 
+    - name: Copy your code to the local repository
+      copy:
+        src: "{{ item }}"
+        dest: /jenkins/work
+      with_fileglob:
+            - "./*"
+      when: repo.changed 
+      
+    - name: Git add json
+      shell: | 
+              git add .
+              git commit -m "Add json to the repo"
+              git config pull.rebase false
+              git pull
+              git push "https://{{ GIT_TOKEN }}@github.aig.net/hshah/ODR_Remediation_Automation.git"
+      args: 
+        chdir: /jenkins/work
+      register: gitCommit
+      delegate_to: localhost
+      
+    - debug: 
+        msg: "{{ gitCommit}}"

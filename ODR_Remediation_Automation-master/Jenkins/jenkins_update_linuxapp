@@ -1,0 +1,123 @@
+pipeline{
+     agent {
+       docker {
+             image 'harimaumalaya:v0.0.1j'
+             label 'docker'
+             registryUrl 'https://046099537821.dkr.ecr.us-east-1.amazonaws.com'
+	         args '-u root'
+	         reuseNode true
+
+       }
+   }
+    parameters {
+    
+         string(name: 'package_app', defaultValue: '', description: 'Package to update')
+         string(name: 'new_version', defaultValue: '', description: 'New version of the package')
+         string(name: 'list_installed_command', defaultValue: '', description: 'Command to list installed packages')
+         string(name: 'update_command', defaultValue: '', description: 'Command to update the package')
+         string(name: 'verify_command', defaultValue: '', description: 'Command to verify the package installation')
+	 string(name: 'server_ip', defaultValue: '', description: 'Server IP for Ansible')
+	 string(name: 'ansible_user', defaultValue: '', description: 'Enter your user_name')
+	 password(name: 'ansible_password', defaultValue: '', description: 'Enter your user_pass')
+	 //credentials(name: 'ansible_password', description: 'Enter your user_pass', defaultValue: '', credentialType: 'String', required: true)
+	 password(name: 'ansible_become_password', defaultValue: '', description: 'Enter your user_become')
+	 password(name: 'GIT_TOKEN', defaultValue: '', description: 'Enter your GIT_TOKEN')
+	 string(name: 'region', defaultValue: '', description: 'Enter region of the server')
+	 string(name: 'os_version', defaultValue: '', description: 'Enter os_version of the server')
+	 string(name: 'qualys_id', defaultValue: '', description: 'Enter qualys_id of the server')
+	 string(name: 'type',  defaultValue: '', description: 'Enter type of the remediation')
+	 string(name: 'platform',  defaultValue: '', description: 'Enter platform of the remediation')
+	 
+         
+	
+	}
+
+   stages {
+      stage('Install Ansible'){
+          steps{
+		script{  
+		 
+                  sh """
+		    apt-get update
+                    apt-get install -y ansible
+                    pip install boto3
+                    ls -ltr /usr/bin/*
+                    ansible --version
+                    which pip
+                    which python
+                    python3 -m pip install boto3
+		    pip install Flask
+		    pwd
+	            ls -ltr
+			  
+                    """
+            }
+	    }
+     }
+     stage('Register server to the satellite') { 
+            steps {
+                script {  
+		        
+
+                          sh '''
+			   rm -rf Subscriptionpassed_hosts subscription_failed
+                          ansible-playbook -i ${server_ip}, Rhsat_satellite.yml \
+			  -e "server_ip=\\"${server_ip}\\""\
+	       -e "ansible_user=\\"${ansible_user}\\""\
+           -e "ansible_password=\\"${ansible_password}\\""\
+           -e "ansible_become_password=\\"${ansible_password}\\""\
+	   -e "region=\\"${region}\\"" \
+	   -e "os_version=\\"${os_version}\\""
+	   ls -lart 
+	  
+                          '''
+                        }
+	           }		
+             }
+         
+ 
+      stage('To update new version of linux application') { 
+            steps {
+                script {  
+		  
+                          sh '''
+			  cat Subscriptionpassed_hosts
+                          ansible-playbook -i Subscriptionpassed_hosts UpdateLinux.yml \
+            -e "package_app=\\"${package_app}\\"" \
+            -e "new_version=\\"${new_version}\\"" \
+	     -e "update_command=\\"${update_command}\\"" \
+           -e "verify_command=\\"${verify_command}\\"" \
+           -e "list_installed_command=\\"${list_installed_command}\\""\
+	   -e "ansible_user=\\"${ansible_user}\\""\
+           -e "ansible_password=\\"${ansible_password}\\""\
+           -e "ansible_become_password=\\"${ansible_password}\\""
+	   ls -lart 
+                          '''
+                        }
+	           }		
+             }
+	     
+        stage('Report generation') {
+            steps {
+              sh 'ansible-playbook -i ${server_ip},   reportlatest.yml \
+	       -e "server_ip=\\"${server_ip}\\""\
+               -e "ansible_user=\\"${ansible_user}\\""\
+               -e "ansible_password=\\"${ansible_password}\\""\
+               -e "ansible_become_password=\\"${ansible_password}\\""\
+	       -e "qualys_id=\\"${qualys_id}\\""\
+	       -e "type=\\"${type}\\""\
+	       -e "platform=\\"${platform}\\""'
+	       
+	       sh 'ls -lart /tmp'
+	       sh 'cp -p /tmp/${server_ip}.html .'
+	       sh 'ansible-playbook -i ${server_ip},  remotestore.yml \
+		-e "ansible_user=\\"${ansible_user}\\""\
+               -e "ansible_password=\\"${ansible_password}\\""\
+               -e "ansible_become_password=\\"${ansible_password}\\""\
+               -e "GIT_TOKEN=\\"${GIT_TOKEN}\\""'
+            }
+                    
+        } 
+
+   }
+}      

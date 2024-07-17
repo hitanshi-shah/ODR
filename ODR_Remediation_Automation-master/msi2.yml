@@ -1,0 +1,109 @@
+---
+- name: Copying Microsoft ODBC Driver for SQL Server
+  hosts: "{{ server_ip }}"
+  gather_facts: false
+  vars:
+    ansible_connection: winrm
+    ansible_user: 'R1-CORE\"{{ ansible_user }}"' 
+    ansible_winrm_transport: ntlm
+    ansible_password: '"{{ ansible_password }}"' 
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+    
+  tasks:
+    - name: Check server connectivity with win_ping
+      win_ping:
+      register: ping_result
+      ignore_errors: yes
+      
+    - name: Fail if server is not reachable
+      fail:
+        msg: "Server is not reachable. Check server connectivity."
+      when: ping_result.failed == true
+      
+    - name: delete file for no change
+      win_file:
+        path: Nochange_Uninstallapp
+        state: absent
+        
+    - name: Delete file
+      win_file:
+        path: passed_Uninstallapp
+        state: absent
+        
+    - name: Delete file for failed
+      win_file:
+        path: post_Uninstallapp
+        state: absent
+      
+    - name: Check if the installer exists
+      win_shell: "{{ check_command }}"
+      register: installer_msi
+      changed_when: false
+      when: ping_result.failed == false
+      
+    - name: Debug installer
+      debug:
+        var: installer_msi.stdout
+      when: ping_result.failed == false
+
+    
+    - name: Print message if msi is already installed
+      debug:
+        msg: "msi is already installed" 
+      when: ping_result.failed == false and ( installer_msi.stdout == driver_name ~ '\r\n' or installer_msi.stdout == 'True\r\n' )
+      
+    - name: Store the info if it is already installed
+      win_shell: |
+        echo "msi is already installed"  > Nochange_Uninstallapp
+      when: ping_result.failed == false and ( installer_msi.stdout == driver_name ~ '\r\n' or installer_msi.stdout == 'True\r\n' )
+    
+    - name: driver name
+      debug:
+        var: driver_name
+
+    - name: Create folder
+      win_file:
+        path: "{{ download_path }}"
+        state: directory
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+           
+    - name: Copying .msi file
+      win_copy:
+        src: /jenkins/work/msifiles/{{ msi_version }}
+        dest: "{{ download_path }}"
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+     
+        
+    - name: Install MSI file 
+      win_shell: "{{ install_command }}"
+      register: installmsi
+      ignore_errors: yes
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+      
+ 
+    - debug:
+        var: installmsi
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )  
+    
+    - name: check if the msi is installed 
+      win_shell: |
+        echo "msi is installed successfully" > passed_Uninstallapp
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+   
+    - name: Check if it is installed successfully
+      win_shell: "{{ check_command }}"
+      register: install_status
+      changed_when: false
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )  
+
+    - name: Print message if the msi is installed successfully
+      debug:
+        msg: "msi is installed successfully"
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+      
+    - name: post check if the msi is installed successfully
+      win_shell: |
+        echo: "msi is installed successfully" > post_Uninstallapp
+      when: ping_result.failed == false and ( installer_msi.stdout == '' or installer_msi.stdout == 'False\r\n' )
+      

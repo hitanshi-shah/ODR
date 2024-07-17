@@ -1,0 +1,92 @@
+---
+- name: Update TLS for Windows Server
+  hosts: all
+  gather_facts: no
+  vars:
+    ansible_connection: winrm
+    ansible_user: prvcloudusr
+    ansible_password: aznlS@G6yhXD
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+  tasks:
+    - name: Check server connectivity with win_ping
+      win_ping:
+      register: ping_result
+      ignore_errors: yes
+
+    - name: Fail if server is not reachable
+      fail:
+        msg: "Server is not reachable. Check server connectivity."
+      when: ping_result.failed == true
+
+    - name: Debug tls_settings_list
+      debug:
+        var: tls_settings_list
+
+    - name: Debug path
+      debug:
+        var: registry_base_paths
+
+    - name: Loop through multiple registry_base_paths
+      block:
+        - name: Loop through multiple registry_base_paths
+          set_fact:
+            registry_base_path: "{{ item }}"
+          loop: "{{ registry_base_paths.split(',') }}"
+          loop_control:
+            loop_var: item
+
+        - name: Check if main folders exist
+          win_reg_stat:
+            path: "{{ registry_base_path }}\\{{ item.key }}"
+          loop: "{{ tls_settings_list }}"
+          loop_control:
+            loop_var: item
+          register: folder_info
+          check_mode: yes
+
+        - name: Check if subfolders exist
+          win_reg_stat:
+            path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+          loop: "{{ tls_settings_list }}"
+          loop_control:
+            loop_var: item
+          register: subfolder_info
+          check_mode: yes
+
+        - name: Create main folders
+          win_file:
+            path: "{{ registry_base_path }}\\{{ item.key }}"
+            state: directory
+          loop: "{{ tls_settings_list }}"
+          loop_control:
+            loop_var: item
+          when:
+            - ping_result.failed == false
+            - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+        - name: Create subfolders
+          win_file:
+            path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+            state: directory
+          loop: "{{ tls_settings_list }}"
+          loop_control:
+            loop_var: item
+          when:
+            - ping_result.failed == false
+            - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+
+        - name: Update Windows Registry for subkeys
+          win_regedit:
+            path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+            name: Enabled
+            state: present
+            type: dword
+            data: "{{ item.enabled }}"
+          loop: "{{ tls_settings_list }}"
+          loop_control:
+            loop_var: item
+          when:
+            - ping_result.failed == false
+            - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+      when: ping_result.failed == false

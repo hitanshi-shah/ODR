@@ -1,0 +1,113 @@
+---
+- name: Finding RHSAT registered repos
+  hosts: all
+  gather_facts: no
+  become_user: root
+  become: yes
+  become_method: dzdo
+    
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    ansible_become_password: "{{ ansible_password }}"
+    region: "{{ region }}"
+    os_version: "{{ os_version }}"
+    server_ip: "{{ server_ip }}"
+    
+  tasks:
+    - name: Finding registered repos
+      block:
+        - ping:
+          register: rhsat_check
+          ignore_errors: true
+      always:
+#         - name: Delete file
+#           file:
+#             path: /tmp/Subscriptionpassed_hosts
+#             state: absent
+            
+#         - name: Delete fail file
+#           file:
+#             path: /tmp/subscription_failed
+#             state: absent
+            
+#         - name: Delete Inc file
+#           file:
+#             path: /tmp/subscription_issue_INCraised
+#             state: absent
+            
+            
+        - name: Check subscription status
+          shell: subscription-manager status | grep -i "Overall Status" | cut -d ":" -f2
+          register: rhsat
+          ignore_errors: true
+          
+        - name: Display subscription status
+          debug:
+            var: rhsat.stdout_lines
+          
+        - name: Capture hosts with unknown status
+          shell:
+             echo "{{ server_ip }}" > subscription_failed
+          when: "'Unknown' in rhsat.stdout"
+          delegate_to: localhost
+
+        - name: display region
+          debug:
+            msg: "Region: {{ region }}"
+
+        - name: display os_version
+          debug:
+            msg: "OS Version: {{ os_version }}"
+#           when: 
+#             - region == 'EM1' and os_version  == '6' 
+#             - "'Disabled' in rhsat.stdout"
+
+            
+        - name: Subscribe to the Appropriate Satellite Server
+          command: yum clean all; rm -fr /etc/yum.repos.d/*; rm -f /root/bootstrap.py; wget http://plgsascs5220006.r1-core.r1.aig.net/pub/bootstrap.py -O /root/bootstrap.py;  chmod +x  /root/bootstrap.py; /root/bootstrap.py -l register -p 8^tR3g1steR -s plgsascs5220006.r1-core.r1.aig.net -o AIG -L global -g "AIG/EM1/Rhel 6" -a  "EMEA Capsule RHEL6_x86_key" --force; yum install katello-agent
+          when: 
+            - region == 'EM1' and os_version == '6'
+            - "'Unknown' in rhsat.stdout"
+          ignore_errors: yes
+          async: 300
+          poll: 0
+  
+        - name: Subscribe to the Appropriate Satellite Server
+          command: yum clean all; rm -fr /etc/yum.repos.d/*; rm -f /root/bootstrap.py; wget http://plgsascs5220006.r1-core.r1.aig.net/pub/bootstrap.py -O /root/bootstrap.py;  chmod +x  /root/bootstrap.py; /root/bootstrap.py -l register -p 8^tR3g1steR -s plgsascs5220006.r1-core.r1.aig.net -o AIG -L global -g "AIG/EM1/Rhel 7" -a  "EMEA Capsule RHEL7_x86_key" --force; yum install katello-agent katello-host-tools-tracer -y; katello-tracer-upload
+          when: 
+            - region == 'EM1' and os_version  == '7'
+            - "'Unknown' in rhsat.stdout"     
+          ignore_errors: yes
+          async: 300
+          poll: 0
+    
+        - name: Subscribe to the Appropriate Satellite Server
+          command: yum clean all; rm -fr /etc/yum.repos.d/*; rm -f /root/bootstrap.py; wget http://plgsascs5220006.r1-core.r1.aig.net/pub/bootstrap.py -O /root/bootstrap.py;  chmod +x  /root/bootstrap.py; /usr/libexec/platform-python bootstrap.py bootstrap.py -l register -p 8^tR3g1steR -s plgsascs5220006.r1-core.r1.aig.net -o AIG -L global -g "AIG/EM1/Rhel 8" -a  "EMEA Capsule RHEL8_x86_key" --force; yum install katello-agent -y
+          when: 
+            - region == 'EM1' and os_version  == '8' 
+            - "'Unknown' in rhsat.stdout"
+          ignore_errors: yes 
+          async: 300
+          poll: 0
+      
+        - name: Check subscription status
+          shell: subscription-manager status | grep -i "Overall Status" | cut -d ":" -f2
+          register: rhsat1
+          ignore_errors: true
+  
+        - name: Capture hosts with unknown status after remediation
+          shell:
+             echo "{{ server_ip }}" > subscription_issue_INCraised 
+          when: "'Unknown' in rhsat1.stdout"
+          delegate_to: localhost
+      
+      
+
+        - name: Capture hosts details
+          shell:
+             echo "{{ server_ip }}" > Subscriptionpassed_hosts
+          when: "'Current' in rhsat1.stdout or 'Disabled' in rhsat1.stdout"
+          delegate_to: localhost    

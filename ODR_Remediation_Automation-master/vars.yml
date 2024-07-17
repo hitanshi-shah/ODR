@@ -1,0 +1,326 @@
+- qualys_id: "4567"
+  package_app: "*openjdk*"
+  new_version: "java-11-openjdk.x86_64"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-11-openjdk.x86_64'"
+  verify_command: "yum list 'java-11-openjdk.x86_64'"
+  type: Update
+  platform: Linux
+
+- qualys_id: "5678"
+  package_app: "*openjdk*"
+  new_version: "java-17-openjdk.x86_64"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-17-openjdk.x86_64'"
+  verify_command: "yum list 'java-17-openjdk.x86_64'"
+  type: Update
+  platform: Linux
+
+
+- qualys_id: "23456"
+  app_location_version: "/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-2.el8.x86_64/bin/java"
+  application: "Oracle java"
+  version_command: "rpm -qf '/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-2.el8.x86_64/bin/java'"
+  uninstall_command: "yum remove -y"
+  check_path_command: "stat '/usr/lib/jvm/java-11-openjdk-11.0.22.0.7-2.el8.x86_64/bin/java'"
+  type: Uninstall
+  platform: Linux
+
+- qualys_id: "56778"
+  package_app: "*openjdk*"
+  new_version: "java-17-openjdk.x86_64"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-17-openjdk.x86_64'"
+  verify_command: "yum list 'java-17-openjdk.x86_64'"
+  type: Update
+  platform: Linux
+
+- qualys_id: "198"
+  package_app: "*openjdk*"
+  new_version: "java-11-openjdk.x86_64"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-11-openjdk.x86_64'"
+  verify_command: "yum list 'java-11-openjdk.x86_64'"
+  type: Update
+  platform: Linux
+
+- qualys_id: "7890"
+  application_name: "PuTTY"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'PuTTY' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'PuTTY' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "678"
+  registry_base_path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols"
+  tls_settings: "TLS 1.0:Server:0, TLS 1.0:Client:0, TLS 1.1:Server:0, TLS 1.1:Client:0, SSL 2.0:Server:0, SSL 2.0:Client:0, SSL 3.0:Server:0, SSL 3.0:Client:0, TLS 1.2:Server:1, TLS 1.2:Client:1"
+  type: Update
+  platform: Windows
+
+- qualys_id: "789"
+  application_name: "Notepad++"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'Notepad++' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'Notepad++' }).Name"
+  type: Uninstall
+  platform: Windows
+
+#- qualys_id: "67898"
+#  package_app: "*openjdk*"
+#  new_version: "java-11-openjdk.x86_64"
+#  list_installed_command: "yum list installed {{ package_app }}"
+#  update_command: "yum install -y {{ new_version }}"
+#  verify_command: "yum list {{ new_version }}"
+#   type: Update
+#   platform: Linux
+
+# - qualys_id: "7890999999"
+#   package_app: "*openjdk*"
+#   new_version: "java-17-openjdk"
+#   list_installed_command: "yum list installed '*openjdk*'"
+#   update_command: "yum install -y 'java-17-openjdk'"
+#   verify_command: "yum list 'java-17-openjdk'"
+#   type: Update
+#   platform: Linux
+  
+# - qualys_id: "7890997999"
+#   package_app: "*openjdk*"
+#   new_version: "java-1.8.0-openjdk"
+#   list_installed_command: "yum list installed '*openjdk*'"
+#   update_command: "yum install -y 'java-1.8.0-openjdk'"
+#   verify_command: "yum list 'java-1.8.0-openjdk'"
+#   type: Update
+#   platform: Linux  
+
+# - qualys_id: "56789"
+#   app_location_version: "/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java"
+#   application: "Open jdk"
+#   version_command: "rpm -qf '/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java'"
+#   uninstall_command: "yum remove -y"
+#   check_path_command: "stat '/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java'"
+#   type: Uninstall
+#   platform: Linux
+
+
+# - qualys_id: "12345"
+#   package_app: "*openjdk*"
+#   new_version: "java-11-openjdk.x86_64"
+#   list_installed_command: "yum list installed '*openjdk*'"
+#   update_command: "yum install -y 'java-11-openjdk.x86_64'"
+#   verify_command: "yum list 'java-11-openjdk.x86_64'"
+#   type: Update
+#   platform: Linux
+
+# - qualys_id: "56789"
+#   app_location_version: "/usr/java/jdk1.8.0_261-amd64/bin/java"
+#   application: "Oracle java"
+#   version_command: "rpm -qf '/usr/java/jdk1.8.0_261-amd64/bin/java'"
+#   uninstall_command: "yum remove -y"
+#   check_path_command: "stat '/usr/java/jdk1.8.0_261-amd64/bin/java'"
+#   type: Uninstall
+#   platform: Linux
+
+# - qualys_id: "3333"
+#   kb_number: "KB5032343"
+#   type: Install
+#   platform: Windows
+
+- qualys_id: "321"
+  application_name: "PuTTY"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'PuTTY' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { \\$_.Name -match 'PuTTY' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "123"
+  package_app: "*openjdk*"
+  new_version: "java-17-openjdk"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-17-openjdk'"
+  verify_command: "yum list 'java-17-openjdk'"
+  type: Update
+  platform: Linux
+  
+- qualys_id: "90"
+  app_location_version: "/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java"
+  application: "Open jdk"
+  version_command: "rpm -qf '/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java'"
+  uninstall_command: "yum remove -y"
+  check_path_command: "stat '/usr/lib/jvm/java-17-openjdk-17.0.9.0.9-2.el8.x86_64/bin/java'"
+  type: Uninstall
+  platform: Linux
+
+- qualys_id: "54578"
+  package_app: "*openjdk*"
+  new_version: "java-17-openjdk"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-17-openjdk'"
+  verify_command: "yum list 'java-17-openjdk'"
+  type: Update
+  platform: Linux
+
+
+- qualys_id: "0000"
+  application_name_or_path: "PuTTY release 0.80 (64-bit)"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'PuTTY release 0.80 (64-bit)' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'PuTTY release 0.80 (64-bit)' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "4567"
+  kb_number: "KB56789,KB6789"
+  type: Install
+  platform: Windows
+
+- qualys_id: "908"
+  kb_number: "KB5032343"
+  type: Install
+  platform: Windows
+
+- qualys_id: "9"
+  application_name_or_path: "Adobe Acrobat Reader"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Adobe Acrobat Reader' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Adobe Acrobat Reader' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "9087"
+  application_name_or_path: "C:\\Program Files\\7-Zip\\Uninstall.exe"
+  uninstall_command: "Start-Process -Wait 'C:\\Program Files\\7-Zip\\Uninstall.exe' '/S'"
+  check_command: "Test-Path 'C:\\Program Files\\7-Zip\\Uninstall.exe'"
+  type: Uninstall
+  platform: Windows
+  
+  
+- qualys_id: "1"
+  application_name_or_path: "C:\\Program Files\\Notepad++\\uninstall.exe"
+  uninstall_command: "Start-Process -Wait 'C:\\Program Files\\Notepad++\\uninstall.exe' '/S'"
+  check_command: "Test-Path 'C:\\Program Files\\Notepad++\\uninstall.exe'"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "5"
+  application_name_or_path: "C:\\Program Files\\Mozilla Firefox\\uninstall\\helper.exe"
+  uninstall_command: "Start-Process -Wait 'C:\\Program Files\\Mozilla Firefox\\uninstall\\helper.exe' '/S'"
+  check_command: "Test-Path 'C:\\Program Files\\Mozilla Firefox\\uninstall\\helper.exe'"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "5"
+  application_name_or_path: "C:\\Program Files\\Notepad++\\uninstall.exe"
+  uninstall_command: "Start-Process -Wait 'C:\\Program Files\\Notepad++\\uninstall.exe' '/S'"
+  check_command: "Test-Path 'C:\\Program Files\\Notepad++\\uninstall.exe'"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "890"
+  registry_base_path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols"
+  tls_settings: "TLS 1.0:Server:0, TLS 1.0:Client:0, TLS 1.1:Server:0, TLS 1.1:Client:0, SSL 2.0:Server:0, SSL 2.0:Client:0, SSL 3.0:Server:0, SSL 3.0:Client:0, TLS 1.2:Server:1, TLS 1.2:Client:1"
+  type: Update
+  platform: Windows
+
+- qualys_id: "8"
+  package_app: "*openjdk*"
+  new_version: "java-17-openjdk"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-17-openjdk'"
+  verify_command: "yum list 'java-17-openjdk'"
+  type: Update
+  platform: Linux
+
+- qualys_id: "242867"
+  package_app: "*openjdk*"
+  new_version: "java-1.8.0-openjdk"
+  list_installed_command: "yum list installed '*openjdk*'"
+  update_command: "yum install -y 'java-1.8.0-openjdk'"
+  verify_command: "yum list 'java-1.8.0-openjdk'"
+  type: Update
+  platform: Linux
+
+- qualys_id: "92097"
+  kb_number: "KB5037034"
+  type: Install
+  platform: Windows
+
+- qualys_id: "92078"
+  kb_number: "KB5032343"
+  type: Install
+  platform: Windows
+
+- qualys_id: "95"
+  msi_version: "msodbcsql_17.msi"
+  driver_name: "Microsoft ODBC Driver 17 for SQL Server"
+  download_path: "C:\\Odbc\\msifiles"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Microsoft ODBC Driver 17 for SQL Server' }).Name"
+  install_command: "Start-Process -FilePath 'msiexec.exe' -Verb 'RunAs' -ArgumentList '/i C:\\Odbc\\msifiles\\msodbcsql_17.msi ADDLOCAL=ALL /qb IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait"
+  type: install
+  platform: windows
+
+
+
+- qualys_id: "56"
+  msi_version: "msodbcsql_17.msi"
+  driver_name: "Microsoft ODBC Driver 17 for SQL Server"
+  download_path: "C:\\Odbc\\msifiles"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Microsoft ODBC Driver 17 for SQL Server' }).Name"
+  install_command: "Start-Process -FilePath 'msiexec.exe' -Verb 'RunAs' -ArgumentList '/i C:\\Odbc\\msifiles\\msodbcsql_17.msi ADDLOCAL=ALL /qb IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait"
+  type: install
+  platform: windows
+
+- qualys_id: "56"
+  application_name_or_path: "PuTTY"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -match 'PuTTY' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -match 'PuTTY' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "10"
+  application_name_or_path: "PuTTY release 0.80 (64-bit)"
+  uninstall_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'PuTTY release 0.80 (64-bit)' }).Uninstall()"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'PuTTY release 0.80 (64-bit)' }).Name"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "56"
+  application_name_or_path: "C:\\Program Files\\Notepad++\\uninstall.exe"
+  uninstall_command: "Start-Process -Wait 'C:\\Program Files\\Notepad++\\uninstall.exe' '/S'"
+  check_command: "Test-Path 'C:\\Program Files\\Notepad++\\uninstall.exe'"
+  type: Uninstall
+  platform: Windows
+
+- qualys_id: "67"
+  msi_version: "msodbcsql_17.msi"
+  driver_name: "Microsoft ODBC Driver 17 for SQL Server"
+  download_path: "C:\\Odbc\\msifiles"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Microsoft ODBC Driver 17 for SQL Server' }).Name"
+  install_command: "Start-Process -FilePath 'msiexec.exe' -Verb 'RunAs' -ArgumentList '/i C:\\Odbc\\msifiles\\msodbcsql_17.msi ADDLOCAL=ALL /qb IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait"
+  type: install
+  platform: windows
+
+- qualys_id: "7"
+  msi_version: "msodbcsql_17.msi"
+  driver_name: "Microsoft ODBC Driver 17 for SQL Server"
+  download_path: "C:\\Odbc\\msifiles"
+  check_command: "(Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -contains 'Microsoft ODBC Driver 17 for SQL Server' }).Name"
+  install_command: "Start-Process -FilePath 'msiexec.exe' -Verb 'RunAs' -ArgumentList '/i C:\\Odbc\\msifiles\\msodbcsql_17.msi ADDLOCAL=ALL /qb IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait"
+  type: install
+  platform: windows
+
+# - qualys_id: "89"
+#   registry_base_path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols,HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL,HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders"
+#   tls_settings: "TLS1.0:Server:0, TLS1.0:Client:0, TLS1.1:Server:0, TLS1.1:Client:0"
+#   type: Update
+#   platform: Windows
+
+
+
+# - qualys_id: "89"
+#   registry_base_path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL,HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders"
+#   tls_settings: "TLS1.0:Server:0, TLS1.0:Client:0, TLS1.1:Server:0, TLS1.1:Client:0"
+#   type: Update
+#   platform: Windows
+
+- qualys_id: "89"
+  registry_base_path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL,HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders"
+  tls_settings: "TLS1.0:Server:0, TLS1.0:Client:0, TLS1.1:Server:0, TLS1.1:Client:0"
+  type: Update
+  platform: Windows

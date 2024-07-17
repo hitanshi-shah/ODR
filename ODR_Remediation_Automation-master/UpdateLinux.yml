@@ -1,0 +1,116 @@
+---
+- name: Update Linux Application
+  hosts: all
+  gather_facts: no
+  become_user: root
+  become: yes
+  become_method: dzdo
+#   vars_files:
+#     - vars.yml
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ansible_user: "{{ ansible_user }}"
+    ansible_password: "{{ ansible_password }}"
+    ansible_become_password: "{{ ansible_password }}"
+
+  tasks:
+    - name: Check if the server is up (ping)
+      ping:
+      register: ping_result
+      
+    - name: delete file for no change
+      file:
+        path: /tmp/Nochange_Updatepackage
+        state: absent
+        
+    - name: Delete file
+      file:
+        path: /tmp/Passed_Updatepackage
+        state: absent
+        
+    - name: Delete file for failed
+      file:
+        path: /tmp/post_Updatepackage
+        state: absent
+        
+    - name: Display a message if the server is not up
+      debug:
+        msg: "Server is not up, cannot proceed with further tasks"
+      when: ping_result.failed == true
+     
+    - name: List installed OpenJDK versions
+      command: "{{ list_installed_command }}"
+      register: installed_versions
+      when: ping_result.failed == false
+
+    # - name: List installed OpenJDK versions
+    #   yum:
+    #     list: "'{{ package_app }}'"
+    #   register: installed_versions
+    #   when: ping_result.failed == false
+ 
+
+    - name: Display installed OpenJDK versions
+      debug:
+        var: installed_versions.stdout_lines
+      when: ping_result.failed == false
+      
+
+    # - name: Update Application to the latest version
+    #   yum:
+    #     name: "{{ new_version }}"  # Replace with the version you need
+    #     state: present  
+    #   when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+      
+    - name: Update Application to the latest version
+      command: "{{ update_command }}"
+      #async: 700  # Set a timeout value in seconds
+      #poll: 0
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+      #register: ping_result
+      
+
+    - name: Display updated version
+      debug:
+        msg: "Package has been updated to {{ new_version }}"
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+      
+    - name: Store the info if it is able to update the package to the specific version
+      shell: 
+        echo "Package has been updated to {{ new_version }}" > /tmp/Passed_Updatepackage
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+    
+    - name: When Package is already updated
+      debug:
+        msg: "Package has been already updated to {{ new_version }}"
+      when: "'{{ new_version }}' in installed_versions.stdout and ping_result.failed == false"
+      
+    - name: Store the info if it is unable to update the package to the specific version
+      shell:
+        echo "Package has been already updated to {{ new_version }}" > /tmp/Nochange_Updatepackage
+      when: "'{{ new_version }}' in installed_versions.stdout and ping_result.failed == false"
+      
+    - name: Verify the package is installed or not
+      command: "{{ verify_command }}"
+      #become: true
+      register: updated_packages
+      #become_user: root
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+   
+        
+    - name: Store the info if it is unable to update the package to the specific version
+      shell:
+        echo "Package has been updated to {{ new_version }}" > /tmp/post_Updatepackage
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"
+      
+    # - name: Verify the package is installed or not
+    #   yum:
+    #     list: "'{{ new_version }}'"
+    #   register: updated_packages
+    #   when: ping_result.failed == false
+
+    - name: Display updated packages
+      debug:
+        var: updated_packages
+      when: "'{{ new_version }}' not in installed_versions.stdout and ping_result.failed == false"

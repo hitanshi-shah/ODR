@@ -1,0 +1,106 @@
+---
+- name: Update TLS for Windows Server
+  block:
+    - name: Check if main folders exist
+      win_reg_stat:
+        path: "{{ registry_base_path }}\\{{ item.key }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      register: folder_info
+      check_mode: yes
+
+    - name: Check if subfolders exist
+      win_reg_stat:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      register: subfolder_info
+      check_mode: yes
+
+    - name: Create main folders
+      win_file:
+        path: "{{ registry_base_path }}\\{{ item.key }}"
+        state: directory
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}" 
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+    - name: Create subfolders
+      win_file:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+        state: directory
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+
+    - name: Update Windows Registry for subkeys
+      win_regedit:
+        path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+        name: Enabled
+        state: present
+        type: dword
+        data: "{{ item.enabled }}"
+      #loop: "{{ tls_settings_list }}"
+      with_items: "{{ tls_settings_list }}"
+      #loop_control:
+        #loop_var: item
+      when:
+        - ping_result.failed == false
+        - not (subfolder_info.results | selectattr('item.subkey', 'equalto', item.subkey) | list | first).exists | default(false)
+
+#     - name: Reboot the server
+#       win_reboot:
+#         reboot_timeout: 600
+#         msg: "Rebooting to apply TLS settings"
+#       with_items: "{{ tls_settings_list}}"
+#       run_once: yes
+#       when:
+#         - ping_result.failed == false
+#         - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+    
+#     - name: Wait for server to come back online
+#       wait_for_connection:
+#         timeout: 600
+#       with_items: "{{ tls_settings_list}}"
+#       when:
+#         - ping_result.failed == false
+#         - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+#     - name: Check if the folder is created with the value
+#       win_regedit:
+#         path: "{{ registry_base_path }}\\{{ item.key }}\\{{ item.subkey }}"
+#         name: Enabled
+#         state: present
+#         type: dword
+#         data: "{{ item.enabled }}"
+#       #loop: "{{ tls_settings_list }}"
+#       with_items: "{{ tls_settings_list }}"
+#       #loop_control:
+#         #loop_var: item
+#       when:
+#         - ping_result.failed == false
+#         - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+#     - name: Print Result after reboot
+#       debug:
+#         var: after_reboot_stat
+#       with_items: "{{ tls_settings_list }}"
+#       when:
+#         - ping_result.failed == false
+#         - not (folder_info.results | selectattr('item.key', 'equalto', item.key) | list | first).exists | default(false)
+
+#   when:
+#     - ping_result.failed == false
+   

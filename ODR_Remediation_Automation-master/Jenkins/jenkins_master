@@ -1,0 +1,177 @@
+pipeline {
+    agent {
+        docker {
+            image 'harimaumalaya:v0.0.1j'
+            label 'docker'
+            registryUrl 'https://046099537821.dkr.ecr.us-east-1.amazonaws.com'
+            args '-u root'
+            reuseNode true
+        }
+    }
+    parameters {
+        string(name: 'qualys_ids', defaultValue: '', description: 'Enter comma-separated qualys_ids')
+        string(name: 'server_ips', defaultValue: '', description: 'Enter comma-separated server IPs')
+        string(name: 'ansible_user', defaultValue: '', description: 'Enter your user_name to login the server')
+	password(name: 'ansible_password', defaultValue: '', description: 'Enter your password to login the server')
+	password(name: 'GIT_TOKEN', defaultValue: '', description: 'Enter yourGIT_TOKEN to connect to git')
+	string(name: 'region', defaultValue: '', description: 'Enter region for linux server not needed for windows')
+	string(name: 'os_version', defaultValue: '', description: 'Enter os_version for linux server not needed for windows')
+    }
+
+    stages {
+        stage('Install Ansible') {
+            steps {
+                script {
+                    sh """
+                    apt-get update
+                    apt-get install -y ansible
+                    pip install boto3
+                    ls -ltr /usr/bin/*
+                    ansible --version
+                    which pip
+                    which python
+                    python3 -m pip install boto3
+                    pwd
+                    ls -ltr
+                    """
+                }
+            }
+        }
+
+        stage('Fetch Qualys Parameters') {
+            steps {
+                script {
+                    def selectedQualysIds = params.qualys_ids.split(',') 
+                    def serverIPs = params.server_ips.split(',')
+                   // def serverIPs = params.server_ips.readLines()
+		    def ansible_user = params.ansible_user
+	            def ansible_password = params.ansible_password
+
+                    for (def serverIP : serverIPs) {
+                    for (def selectedQualysId : selectedQualysIds) {
+                        def qualysParams = readYaml(file: 'vars.yml')
+                        def parameters = qualysParams.find { it.qualys_id == selectedQualysId }
+
+                        if (parameters) {
+                            def qualysId = parameters.qualys_id
+                            def type = parameters.type
+                            def platform = parameters.platform
+			    
+
+                            if (type == 'Update' && platform == 'Linux') {
+                                build job: 'Update_linuxapp', parameters: [
+                                    string(name: 'package_app', value: parameters.package_app),
+                                    string(name: 'new_version', value: parameters.new_version),
+                                    string(name: 'list_installed_command', value: parameters.list_installed_command),
+                                    string(name: 'update_command', value: parameters.update_command),
+                                    string(name: 'verify_command', value: parameters.verify_command),
+                                    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+				    password(name: 'ansible_become_password', value: ansible_password),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+				    string(name: 'region', value: region),
+	                            string(name: 'os_version', value: os_version),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform),
+                                    string(name: 'server_ip', value: serverIP) 
+                                ]
+                            } else if (type == 'Uninstall' && platform == 'Linux') {
+                                build job: 'Uninstall_linuxapp', parameters: [
+                                    string(name: 'app_location_version', value: parameters.app_location_version),
+                                    string(name: 'application', value: parameters.application),
+                                    string(name: 'version_command', value: parameters.version_command),
+                                    string(name: 'uninstall_command', value: parameters.uninstall_command),
+                                    string(name: 'check_path_command', value: parameters.check_path_command),
+				    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+				    password(name: 'ansible_become_password', value: ansible_password),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+				    string(name: 'region', value: region),
+	                            string(name: 'os_version', value: os_version),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform),
+                                    string(name: 'server_ip', value: serverIP)
+                                ]
+                            } else if (type == 'Uninstall' && platform == 'Windows') {
+                                build job: 'windows_uninstallapp', parameters: [
+                                    string(name: 'application_name_or_path', value: parameters.application_name_or_path),
+                                    string(name: 'uninstall_command', value: parameters.uninstall_command),
+                                    string(name: 'check_command', value: parameters.check_command),
+				    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+                                    string(name: 'server_ip', value: serverIP),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform)
+                                ]
+                            } else if (type == 'install' && platform == 'windows') {
+                                build job: 'windows_msi', parameters: [
+                                    string(name: 'msi_version', value: parameters.msi_version),
+                                    string(name: 'driver_name', value: parameters.driver_name),
+                                    string(name: 'download_path', value: parameters.download_path),
+				    string(name: 'check_command', value: parameters.check_command),
+				    string(name: 'install_command', value: parameters.install_command),
+				    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+                                    string(name: 'server_ip', value: serverIP),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform)
+                                ]
+                            } else if (type == 'update' && platform == 'windows') {
+                                build job: 'windows_exe', parameters: [
+                                    string(name: 'exe_version', value: parameters.exe_version),
+                                    string(name: 'driver_name', value: parameters.driver_name),
+                                    string(name: 'download_path', value: parameters.download_path),
+				    string(name: 'check_command', value: parameters.check_command),
+				    string(name: 'install_command', value: parameters.install_command),
+				    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+                                    string(name: 'server_ip', value: serverIP),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform)
+                                ]
+                            } else if (type == 'Update' && platform == 'Windows') {
+                                build job: 'windows_configupdate', parameters: [
+                                    string(name: 'registry_base_path', value: parameters.registry_base_path),
+                                    string(name: 'tls_settings', value: parameters.tls_settings),
+				     string(name: 'ansible_user', value: ansible_user),
+				     password(name: 'ansible_password', value: ansible_password),
+                                    string(name: 'server_ip', value: serverIP),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform)
+				    
+                                ]
+                            } 
+                            else if (type == 'Install' && platform == 'Windows') {
+                                build job: 'Microsoftdotnetkb', parameters: [
+                                    string(name: 'kb_number', value: parameters.kb_number),
+				    string(name: 'ansible_user', value: ansible_user),
+                                    password(name: 'ansible_password', value: ansible_password),
+                                    string(name: 'server_ip', value: serverIP),
+				    password(name: 'GIT_TOKEN', value: GIT_TOKEN),
+				    string(name: 'qualys_id', value: qualysId),
+				    string(name: 'type', value: type),
+				    string(name: 'platform', value: platform)
+                                ]
+                            }else {
+                                error("Unsupported combination of type and platform.")
+                            }
+                        } else {
+                            error("Invalid Qualys ID: ${selectedQualysId}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    }
+}
